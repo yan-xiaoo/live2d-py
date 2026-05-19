@@ -12,7 +12,8 @@ import pygame
 from pygame.locals import *
 
 # import live2d.v3 as live2d
-import live2d.v2 as live2d
+# import live2d.v2 as live2d
+import live2d.v2cpp as live2d
 
 if live2d.LIVE2D_VERSION == 3:
     from live2d.v3 import StandardParams
@@ -37,8 +38,7 @@ def main():
     pygame.display.set_mode(display, DOUBLEBUF | OPENGL)
     pygame.display.set_caption("pygame window")
 
-    if live2d.LIVE2D_VERSION == 3:
-        live2d.glInit()
+    live2d.glInit()
 
     model = live2d.LAppModel()
 
@@ -47,18 +47,19 @@ def main():
         model.LoadModelJson(
             # os.path.join(resources.RESOURCES_DIRECTORY, "v3/liveroid/liveroiD_A-Y01/liveroiD_A-Y01.model3.json")
             # os.path.join(resources.RESOURCES_DIRECTORY, "v3/Mao/Mao.model3.json")
-            # os.path.join(resources.RESOURCES_DIRECTORY, "v3/llny/llny.model3.json")
+            os.path.join(resources.RESOURCES_DIRECTORY, "v3/llny/llny.model3.json")
             # os.path.join(resources.RESOURCES_DIRECTORY, "v3/nn/nn.model3.json")
             # os.path.join(resources.RESOURCES_DIRECTORY, "v3/magic/magic.model3.json")
-            os.path.join(resources.RESOURCES_DIRECTORY, "v3/Haru/Haru.model3.json")
+            # os.path.join(resources.RESOURCES_DIRECTORY, "v3/Haru/Haru.model3.json")
             # os.path.join(resources.RESOURCES_DIRECTORY, "v3/Hiyori/Hiyori.model3.json")
             # os.path.join(resources.RESOURCES_DIRECTORY, "v3/小九/小九皮套（红）/小九.model3.json")
             # os.path.join(resources.RESOURCES_DIRECTORY, "v3/金发大小姐/金发大小姐.model3.json")
-        , maskBufferCount = 100)
+        , maskBufferCount = 2)
     else:
         model.LoadModelJson(
             # os.path.join(resources.RESOURCES_DIRECTORY, "v2/托尔/model0.json")
             os.path.join(resources.RESOURCES_DIRECTORY, "v2/haru/haru.model.json")
+            # os.path.join(resources.RESOURCES_DIRECTORY, "v2/kasumi2/kasumi2.model.json")
         )
 
 
@@ -102,7 +103,8 @@ def main():
     # 设置 part 透明度
     # log.Debug(f"Part Count: {model.GetPartCount()}")
     partIds = model.GetPartIds()
-    # print(len(partIds))
+    print(len(partIds))
+    print(partIds)
     # log.Debug(f"Part Ids: {partIds}")
     # log.Debug(f"Part Id for index 2: {model.GetPartId(2)}")
     # model.SetPartOpacity(partIds.index("PartHairBack"), 0.5)
@@ -127,7 +129,7 @@ def main():
 
     fc = None
     sc = None
-    model.StartRandomMotion("TapBody", 300, sc, fc)
+    # model.StartRandomMotion("TapBody", 300, sc, fc)
 
     radius_per_frame = math.pi * 10 / 1000 * 0.5
     deg_max = 5
@@ -137,6 +139,9 @@ def main():
     print("canvas size:", model.GetCanvasSize())
     print("canvas size in pixels:", model.GetCanvasSizePixel())
     print("pixels per unit:", model.GetPixelsPerUnit())
+
+    fps_frames = 0
+    fps_timer = time.time()
 
     while True:
         for event in pygame.event.get():
@@ -228,7 +233,11 @@ def main():
         live2d.clearBuffer(1.0, 0.0, 0.0, 0.0)
         model.Draw()
         pygame.display.flip()
-        pygame.time.wait(10)
+        fps_frames += 1
+        if time.time() - fps_timer >= 1.0:
+            pygame.display.set_caption(f"FPS: {fps_frames}")
+            fps_frames = 0
+            fps_timer = time.time()
 
     live2d.dispose()
 

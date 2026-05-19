@@ -64,3 +64,10 @@ Live2D/Core
 csmsdk_temp
 
 .cache
+
+Live2D/V3/Core/*
+Live2D/V3/Framework/*
+
+.claude
+
+*.png
