@@ -35,7 +35,7 @@ def main():
 
     model = live2d.LAppModel()
     if live2d.LIVE2D_VERSION == 3:
-        model.LoadModelJson(os.path.join(resources.RESOURCES_DIRECTORY, "ac_base_rem01/ac_base_rem01.model3.json"))
+        model.LoadModelJson(os.path.join(resources.RESOURCES_DIRECTORY, "v3/ac_base_rem01/ac_base_rem01.model3.json"))
     else:
         model.LoadModelJson(os.path.join(resources.RESOURCES_DIRECTORY, "v2/haru/haru.model.json"))
 

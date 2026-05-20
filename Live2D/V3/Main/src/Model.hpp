@@ -34,6 +34,15 @@ public:
 
     const char *GetModelHomeDir();
 
+    // Hook motion loading to auto-fix meta counts
+    Csm::ACubismMotion* LoadMotion(const Csm::csmByte* buffer, Csm::csmSizeInt size,
+                                   const Csm::csmChar* name,
+                                   Csm::ACubismMotion::FinishedMotionCallback onFinished = NULL,
+                                   Csm::ACubismMotion::BeganMotionCallback onBegan = NULL,
+                                   Csm::ICubismModelSetting* modelSetting = NULL,
+                                   const Csm::csmChar* group = NULL, Csm::csmInt32 index = -1,
+                                   csmBool shouldCheckMotionConsistency = false) override;
+
     // update
 
     void Update(float deltaSecs);

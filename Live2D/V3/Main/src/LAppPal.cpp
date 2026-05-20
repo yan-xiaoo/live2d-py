@@ -86,11 +86,8 @@ void LAppPal::InitShaderDir(const std::string& path)
     Info("[Pal] Init Shader Dir: %s", SHADER_DIR.c_str());
 }
 
-void LAppPal::FixMotionJson(Csm::csmByte* buffer, Csm::csmSizeInt& size)
+void LAppPal::FixMotionJson(std::string& jsonStr)
 {
-    // Work on a copy so CubismJson doesn't scribble on the original buffer
-    std::string jsonStr(reinterpret_cast<char*>(buffer), size);
-
     using namespace Live2D::Cubism::Framework::Utils;
     CubismJson* json = CubismJson::Create(
         reinterpret_cast<const csmByte*>(jsonStr.data()), static_cast<csmSizeInt>(jsonStr.size()));
@@ -129,15 +126,13 @@ void LAppPal::FixMotionJson(Csm::csmByte* buffer, Csm::csmSizeInt& size)
     int metaSegCount   = root["Meta"]["TotalSegmentCount"].ToInt(-1);
     int metaPointCount = root["Meta"]["TotalPointCount"].ToInt(-1);
 
-    bool needsFix = (metaCurveCount >= 0 && metaCurveCount != actualCurveCount) ||
-                    (metaSegCount   >= 0 && metaSegCount   != actualSegmentCount) ||
-                    (metaPointCount >= 0 && metaPointCount != actualPointCount);
-
     CubismJson::Delete(json);
 
-    if (!needsFix) return;
+    if (metaCurveCount == actualCurveCount &&
+        metaSegCount   == actualSegmentCount &&
+        metaPointCount == actualPointCount)
+        return;
 
-    // Fix on the jsonStr copy, then write back to original buffer
     auto fixInt = [&](const char* key, int newVal) {
         size_t kp = jsonStr.find(key);
         if (kp == std::string::npos) return;
@@ -153,11 +148,6 @@ void LAppPal::FixMotionJson(Csm::csmByte* buffer, Csm::csmSizeInt& size)
     fixInt("\"CurveCount\"", actualCurveCount);
     fixInt("\"TotalSegmentCount\"", actualSegmentCount);
     fixInt("\"TotalPointCount\"", actualPointCount);
-
-    if (jsonStr.size() <= (size_t)size) {
-        std::memcpy(buffer, jsonStr.data(), jsonStr.size());
-        size = static_cast<csmSizeInt>(jsonStr.size());
-    }
 }
 
 void LAppPal::interceptShaderLoading(std::string &filePath)

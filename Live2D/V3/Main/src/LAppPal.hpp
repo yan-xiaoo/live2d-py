@@ -59,5 +59,5 @@ public:
      * @param[in,out] buffer   JSON 数据（原地修改）
      * @param[in]     size     数据大小
      */
-    static void FixMotionJson(Csm::csmByte* buffer, Csm::csmSizeInt& size);
+    static void FixMotionJson(std::string& json);
 };

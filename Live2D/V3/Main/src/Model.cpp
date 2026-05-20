@@ -51,11 +51,6 @@ void LoadAssets(const std::string& filePath,
 
     buffer = LAppPal::LoadFileAsBytes(filePath.c_str(), &bufferSize);
 
-    // Auto-fix motion3.json files whose Meta counts don't match actual Curves data
-    if (filePath.find(".motion3.json") != std::string::npos) {
-        LAppPal::FixMotionJson(buffer, bufferSize);
-    }
-
     afterLoadCallback(buffer, bufferSize);
 
     LAppPal::ReleaseBytes(buffer);
@@ -110,6 +105,22 @@ void Model::LoadModelJson(const char* filePath)
     });
 
     SetupModel();
+}
+
+ACubismMotion* Model::LoadMotion(const csmByte* buffer, csmSizeInt size, const csmChar* name,
+                                  ACubismMotion::FinishedMotionCallback onFinished,
+                                  ACubismMotion::BeganMotionCallback onBegan,
+                                  ICubismModelSetting* modelSetting,
+                                  const csmChar* group, csmInt32 index,
+                                  csmBool shouldCheckMotionConsistency)
+{
+    std::string fixed(reinterpret_cast<const char*>(buffer), size);
+    LAppPal::FixMotionJson(fixed);
+    return CubismUserModel::LoadMotion(
+        reinterpret_cast<const csmByte*>(fixed.data()),
+        static_cast<csmSizeInt>(fixed.size()), name,
+        onFinished, onBegan, modelSetting, group, index,
+        shouldCheckMotionConsistency);
 }
 
 const char* Model::GetModelHomeDir()
@@ -287,23 +298,24 @@ void Model::SetupModel()
         const csmChar* group = _modelSetting->GetMotionGroupName(i);
         PreloadMotionGroup(group);
     }
+    Debug("Model setup complete1");
     _motionManager->StopAllMotions();
-
+    Debug("Model setup complete2");
     _matrixManager.SetModelWH(_model->GetCanvasWidth(), _model->GetCanvasHeight());
-
+    Debug("Model setup complete3");
     _ParamAngleXi = _model->GetParameterIndex(_idParamAngleX);
     _ParamAngleYi = _model->GetParameterIndex(_idParamAngleY);
     _ParamAngleZi = _model->GetParameterIndex(_idParamAngleZ);
     _ParamBodyAngleXi = _model->GetParameterIndex(_idParamBodyAngleX);
     _ParamEyeBallXi = _model->GetParameterIndex(_idParamEyeBallX);
     _ParamEyeBallYi = _model->GetParameterIndex(_idParamEyeBallY);
-
+    Debug("Model setup complete4");
     _tmpOrderedDrawIndice = new int[_model->GetDrawableCount()];
     csmModel* model = _model->GetModel();
     _parameterDefaultValues = csmGetParameterDefaultValues(model);
     _parameterValues = csmGetParameterValues(model);
     _parameterCount = csmGetParameterCount(model);
-
+    Debug("Model setup complete5");
     _savedParameterValues.resize(_parameterCount);
     SaveParameters();
     Debug("Model setup complete");
