@@ -71,3 +71,4 @@ Live2D/V3/Framework/*
 .claude
 
 *.png
+!docs/*.png
