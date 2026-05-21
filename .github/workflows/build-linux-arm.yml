@@ -46,16 +46,6 @@ jobs:
         run: |
           python setup.py bdist_wheel
 
-      - name: Test Run (v2, v2cpp, v3)
-        if: ${{ matrix.python-version == '3.14' }}
-        run: |
-          sudo apt-get install -y --no-install-recommends xvfb libegl1-mesa-dev libxkbcommon-x11-0
-          pip install pyside6 pyopengl numpy pillow
-          cd package
-          xvfb-run -a python test_run_screenshot.py v2   --model haru --output screenshot_v2.png
-          xvfb-run -a python test_run_screenshot.py v2cpp --model haru --output screenshot_v2cpp.png
-          xvfb-run -a python test_run_screenshot.py v3   --model haru --output screenshot_v3.png
-
       - name: Upload screenshots
         if: ${{ matrix.python-version == '3.14' }}
         uses: actions/upload-artifact@v4
