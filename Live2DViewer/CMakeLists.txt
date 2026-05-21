@@ -93,7 +93,7 @@ if(WIN32)
         COMMAND
         ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_BINARY_DIR}/moeroid.ico $<TARGET_FILE_DIR:Live2DViewer>/moeroid.ico
         COMMAND 
-        ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/../Live2D/Framework/src/Rendering/OpenGL/Shaders/Standard $<TARGET_FILE_DIR:Live2DViewer>/FrameworkShaders
+        ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/../Live2D/V3/Framework/src/Rendering/OpenGL/Shaders/Standard $<TARGET_FILE_DIR:Live2DViewer>/FrameworkShaders
     )
 else()
     # Linux deployment - just copy the icon
@@ -103,7 +103,7 @@ else()
         COMMAND
         ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_BINARY_DIR}/moeroid.ico $<TARGET_FILE_DIR:Live2DViewer>/moeroid.ico
         COMMAND 
-        ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/../Live2D/Framework/src/Rendering/OpenGL/Shaders/Standard $<TARGET_FILE_DIR:Live2DViewer>/FrameworkShaders
+        ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/../Live2D/V3/Framework/src/Rendering/OpenGL/Shaders/Standard $<TARGET_FILE_DIR:Live2DViewer>/FrameworkShaders
     )
 endif()
 

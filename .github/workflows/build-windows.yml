@@ -40,7 +40,7 @@ jobs:
           python setup.py bdist_wheel
 
       - name: Test Run (v2, v2cpp, v3)
-        if: ${{ matrix.python-version == '3.14' }}
+        if: ${{ matrix.python-version == '3.13' }}
         run: |
           pip install pyside6 pyopengl numpy pillow
           cd package
@@ -49,7 +49,7 @@ jobs:
           python test_run_screenshot.py v3 --model haru --output screenshot_v3.png
 
       - name: Upload screenshots
-        if: ${{ matrix.python-version == '3.14' }}
+        if: ${{ matrix.python-version == '3.13' }}
         uses: actions/upload-artifact@v4
         with:
           name: screenshots-windows
