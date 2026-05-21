@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdint>
 #include "AMotion.hpp"
 #include "Motion.hpp"
 #include <vector>

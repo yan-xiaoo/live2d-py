@@ -1,4 +1,5 @@
 # example of rendering live2d in multiple opengl windows at one time
+import resources
 
 # import live2d.v3 as live2d
 # import live2d.v2 as live2d
@@ -7,7 +8,6 @@ import live2d.v2cpp as live2d
 from PyQt5.Qt import QCursor
 from PyQt5.QtWidgets import QOpenGLWidget
 
-import resources
 import os
 
 class ClonePet(QOpenGLWidget):

@@ -5,10 +5,10 @@ from PyQt6.QtOpenGLWidgets import QOpenGLWidget
 from PyQt6.QtWidgets import QApplication
 from OpenGL.GL import *
 from PyQt6.QtGui import QSurfaceFormat
+import resources
 
 import live2d.v3 as live2d
 # import live2d.v2 as live2d
-import resources
 import os
 os.environ["QSG_RHI_BACKEND"] = "opengl"
 

@@ -19,9 +19,9 @@ function(set_wrapper_output TARGET baseName)
             SUFFIX ".pyd" PREFIX "" OUTPUT_NAME "${baseName}")
     elseif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
         set_target_properties(${TARGET} PROPERTIES
-            SUFFIX ".so" PREFIX "lib" OUTPUT_NAME "${baseName}")
+            SUFFIX ".so" PREFIX "" OUTPUT_NAME "${baseName}")
     else()
         set_target_properties(${TARGET} PROPERTIES
-            SUFFIX ".so" PREFIX "lib" OUTPUT_NAME "${baseName}")
+            SUFFIX ".so" PREFIX "" OUTPUT_NAME "${baseName}")
     endif()
 endfunction()

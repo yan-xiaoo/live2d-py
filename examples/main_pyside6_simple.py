@@ -3,10 +3,10 @@ import os
 from PySide6.QtCore import QTimerEvent, Qt
 from PySide6.QtOpenGLWidgets import QOpenGLWidget
 from OpenGL.GL import *
+import resources
 
 import live2d.v3 as live2d
 # import live2d.v2 as live2d
-import resources
 
 
 class Win(QOpenGLWidget):

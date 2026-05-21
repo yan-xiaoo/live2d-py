@@ -4,9 +4,9 @@ from .graphics import DrawParamOpenGL
 
 class Live2DModelOpenGL(ALive2DModel):
 
-    def __init__(self, version: str, disable_precision: bool):
+    def __init__(self, version: str):
         super().__init__()
-        self.drawParamGL: DrawParamOpenGL = DrawParamOpenGL(version, disable_precision)
+        self.drawParamGL: DrawParamOpenGL = DrawParamOpenGL(version)
 
     def resize(self, ww: int, wh: int):
         self.drawParamGL.resize(ww, wh)
@@ -25,8 +25,8 @@ class Live2DModelOpenGL(ALive2DModel):
         self.drawParamGL.setMatrix(aH)
 
     @staticmethod
-    def loadModel(aI, version: str, disable_precision: bool):
-        aH = Live2DModelOpenGL(version, disable_precision)
+    def loadModel(aI, version: str):
+        aH = Live2DModelOpenGL(version)
         ALive2DModel.loadModel_exe(aH, aI)
         return aH
 

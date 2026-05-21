@@ -1,18 +1,17 @@
 import os.path
 import sys
+import resources
 
 from live2d.utils.canvas import Canvas
 
 """
 Example of controlling model opacity using live2d.utils.canvas.Canvas
 """
-
 import live2d.v3 as live2d
 # import live2d.v2 as live2d
 # import live2d.v2cpp as live2d
 import math
 import os
-import resources
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QOpenGLWidget
 

@@ -8,10 +8,10 @@ from PySide6.QtGui import QMouseEvent, QCursor
 from PySide6.QtOpenGLWidgets import QOpenGLWidget
 from PySide6.QtWidgets import QApplication
 from PySide6.QtGui import QGuiApplication
+import resources
 
 import live2d.v3 as live2d
 # import live2d.v2 as live2d
-import resources
 
 
 def callback():

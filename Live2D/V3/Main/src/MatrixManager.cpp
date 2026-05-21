@@ -1,3 +1,4 @@
+#include <cmath>
 #include "MatrixManager.hpp"
 
 MatrixManager::MatrixManager(): _offsetX(0.0f), _offsetY(0.0f), _scaleX(1.0f), _scaleY(1.0f),

@@ -1,12 +1,12 @@
+import resources
 import math
 import os.path
 import time
 
 import glfw
-import live2d.v3 as live2d
+# import live2d.v3 as live2d
 # import live2d.v2 as live2d
-# import live2d.v2cpp as live2d
-import resources
+import live2d.v2cpp as live2d
 
 if live2d.LIVE2D_VERSION == 3:
     from live2d.v3 import StandardParams
@@ -35,7 +35,7 @@ def main():
 
     model = live2d.LAppModel()
     if live2d.LIVE2D_VERSION == 3:
-        model.LoadModelJson(os.path.join(resources.RESOURCES_DIRECTORY, "v3/ac_base_rem01/ac_base_rem01.model3.json"))
+        model.LoadModelJson(os.path.join(resources.RESOURCES_DIRECTORY, "v3/llny/llny.model3.json"))
     else:
         model.LoadModelJson(os.path.join(resources.RESOURCES_DIRECTORY, "v2/haru/haru.model.json"))
 

@@ -1,4 +1,5 @@
 # 简易面捕示例 (mediapipe >=0.10.22)
+import resources
 import os
 import threading as td
 import time
@@ -13,7 +14,6 @@ from mediapipe.tasks.python import BaseOptions
 # import live2d.v2cpp as live2d
 import live2d.v3 as live2d
 # import live2d.v2 as live2d
-import resources
 if live2d.LIVE2D_VERSION == 3:
     from live2d.v3.params import StandardParams
 else:

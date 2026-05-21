@@ -1,8 +1,8 @@
 import os
 import pygame
+import resources
 import live2d.v3 as live2d
 # import live2d.v2 as live2d
-import resources
 
 from live2d.utils.image import Image
 

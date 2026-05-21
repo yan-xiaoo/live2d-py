@@ -25,7 +25,9 @@ static const char* sVertNormal = SHADER_VER
 
 // -- Normal fragment (aM in Python) -- with u_maskFlag for mask rendering pass
 static const char* sFragNormal = SHADER_VER
-"precision mediump float;"
+"#ifdef GL_ES\n"
+"precision mediump float;\n"
+"#endif\n"
 "varying vec2 v_texCoord;"
 "varying vec4 v_clipPos;"
 "uniform sampler2D s_texture0;"
@@ -71,7 +73,9 @@ static const char* sVertMask = SHADER_VER
 
 // -- Mask fragment (aJ in Python)
 static const char* sFragMask = SHADER_VER
-"precision mediump float;"
+"#ifdef GL_ES\n"
+"precision mediump float;\n"
+"#endif\n"
 "varying vec2 v_texCoord;"
 "varying vec4 v_clipPos;"
 "uniform sampler2D s_texture0;"
@@ -122,6 +126,8 @@ GLuint DrawParamOpenGL::compileShader(GLenum type, const char* src) {
     if (!ok) {
         char buf[512];
         glGetShaderInfoLog(shader, 512, nullptr, buf);
+        fprintf(stderr, "Shader compile error (%s): %s\n",
+                type == GL_VERTEX_SHADER ? "vertex" : "fragment", buf);
     }
     return shader;
 }

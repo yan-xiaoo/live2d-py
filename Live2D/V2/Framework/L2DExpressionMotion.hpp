@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdint>
 #include <vector>
 #include "../Motion/AMotion.hpp"
 #include "L2DExpressionParam.hpp"

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include "ISerializable.hpp"
 #include <vector>
 

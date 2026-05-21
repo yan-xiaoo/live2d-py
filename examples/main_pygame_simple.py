@@ -1,12 +1,12 @@
 import os
 import pygame
+import resources
 # import live2d.v3 as live2d
 import live2d.v2 as live2d
 if live2d.LIVE2D_VERSION == 3:
     from live2d.v3 import StandardParams
 else:
     from live2d.v2 import StandardParams
-import resources
 
 
 def main():

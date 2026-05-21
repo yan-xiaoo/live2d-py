@@ -3,9 +3,8 @@ fine-grained model example — glfw version
 
 class: live2d.v3.Model
 """
-
-import live2d.v3 as live2d
 import resources
+import live2d.v3 as live2d
 import os
 import random
 import time

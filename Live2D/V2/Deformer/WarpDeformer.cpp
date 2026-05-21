@@ -5,6 +5,7 @@
 #include "../Core/PivotManager.hpp"
 #include "../Model/ModelContext.hpp"
 #include "../Util/UtInterpolate.hpp"
+#include <cmath>
 #include <cstdio>
 #include <stdexcept>
 

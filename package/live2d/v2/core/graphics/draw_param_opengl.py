@@ -14,7 +14,7 @@ class FrameBufferObject:
 
 class DrawParamOpenGL(DrawParam):
 
-    def __init__(self, version: str, disable_precision: bool):
+    def __init__(self, version: str):
         super().__init__()
         self.framebufferObject: FrameBufferObject | None = None
         self.shaderProgramOff = None
@@ -33,10 +33,7 @@ class DrawParamOpenGL(DrawParam):
         self.fragShaderOff = None
         self.lastBlending = [0, 0, 0, 0]
 
-        precision = ""
-
-        if not disable_precision:
-            precision = "precision mediump float;"
+        precision = "#ifdef GL_ES\nprecision mediump float;\n#endif\n"
 
         self.aK = (version +
               "attribute vec2 a_position;"

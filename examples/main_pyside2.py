@@ -1,7 +1,8 @@
 from PySide2.QtGui import QMouseEvent
+import resources
+
 import live2d.v3 as live2d
 import os
-import resources
 from PySide2.QtCore import QTimerEvent
 from PySide2.QtWidgets import QApplication
 from PySide2.QtWidgets import QOpenGLWidget

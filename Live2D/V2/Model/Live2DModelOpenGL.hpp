@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdint>
 #include "ALive2DModel.hpp"
 namespace live2d {
 class DrawParamOpenGL;

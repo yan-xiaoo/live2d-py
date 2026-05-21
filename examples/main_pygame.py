@@ -7,6 +7,7 @@
 import math
 import os
 import time
+import resources
 
 import pygame
 from pygame.locals import *
@@ -22,7 +23,6 @@ else:
 from live2d.utils import log
 
 
-import resources
 from live2d.utils.lipsync import WavHandler
 
 live2d.enableLog(True)
