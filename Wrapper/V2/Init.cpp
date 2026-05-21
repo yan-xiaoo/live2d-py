@@ -5,7 +5,6 @@
 
 // glad GL loader
 extern "C" int gladLoadGL();
-namespace live2d { bool gGLReady = false; }
 
 static PyObject* v2cpp_init(PyObject*, PyObject*) { Py_RETURN_NONE; }
 static PyObject* v2cpp_glInit(PyObject*, PyObject*) {
@@ -13,7 +12,6 @@ static PyObject* v2cpp_glInit(PyObject*, PyObject*) {
         PyErr_SetString(PyExc_RuntimeError, "Failed to initialize OpenGL");
         return nullptr;
     }
-    live2d::gGLReady = true;
     Py_RETURN_NONE;
 }
 static PyObject* v2cpp_glRelease(PyObject*, PyObject*) { Py_RETURN_NONE; }
