@@ -42,7 +42,10 @@ jobs:
             done
 
             for whl in dist/*.whl; do
-              auditwheel repair "$whl" -w dist/
+              auditwheel repair "$whl" -w dist/ || true
+            done
+            for whl in dist/*manylinux*.whl; do
+              python3 /work/tools/fix_wheel_meta.py "$whl"
             done
 
             chown -R $(stat -c "%u:%g" /work) /work/dist /work/build

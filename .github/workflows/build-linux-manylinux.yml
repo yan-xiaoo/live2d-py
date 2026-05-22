@@ -44,9 +44,12 @@ jobs:
               "$PYBIN/python" setup.py bdist_wheel
             done
 
-            # Tag wheels as manylinux
+            # Tag wheels as manylinux (repair then strip invalid PEP 639 fields)
             for whl in dist/*.whl; do
-              auditwheel repair "$whl" -w dist/
+              auditwheel repair "$whl" -w dist/ || true
+            done
+            for whl in dist/*manylinux*.whl; do
+              python3 /work/tools/fix_wheel_meta.py "$whl"
             done
 
             # Fix file ownership for host

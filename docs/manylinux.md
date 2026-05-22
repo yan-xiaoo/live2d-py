@@ -38,7 +38,7 @@ docker exec ml bash -c '
   done
 
   for whl in dist/*.whl; do
-    auditwheel repair "$whl" -w dist/
+    auditwheel addtag "$whl" --plat manylinux_2_28_x86_64 -w dist/
   done
 
   chown -R $(stat -c "%u:%g" /work) /work/dist /work/build
