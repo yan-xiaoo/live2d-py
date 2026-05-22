@@ -33,6 +33,7 @@ add_library(${V2_TARGET} STATIC
     Framework/L2DEyeBlink.cpp
     Framework/L2DPose.cpp
     Framework/L2DPhysics.cpp
+    Framework/PhysicsHair.cpp
     Framework/L2DExpressionMotion.cpp
     Framework/L2DMotionManager.cpp
     Framework/L2DBaseModel.cpp
