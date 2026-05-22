@@ -25,8 +25,9 @@ class LAppModel(L2DBaseModel):
         self.dragMgr.setPoint(0.0, 0.0)
         self.autoBreath = True
         self.autoBlink = True
-
-        self.finishCallback = None
+        self.curMotionGroup = ""
+        self.curMotionNo = -1
+        self.curMotionFinishHandler = None
 
         self.__clearFlag = False
 
@@ -178,9 +179,11 @@ class LAppModel(L2DBaseModel):
         time_sec = time_m_sec / 1000.0
         t = time_sec * 2 * math.pi
         if self.mainMotionManager.isFinished():
-            if callable(self.finishCallback):
-                self.finishCallback()
-                self.finishCallback = None
+            if callable(self.curMotionFinishHandler):
+                self.curMotionFinishHandler(self.curMotionGroup, self.curMotionNo)
+                self.curMotionFinishHandler = None
+                self.curMotionGroup = ""
+                self.curMotionNo = -1
 
         updated = False
         if self.__clearFlag:
@@ -249,7 +252,7 @@ class LAppModel(L2DBaseModel):
             if callable(onStartMotionHandler):
                 onStartMotionHandler(name, no)
             if callable(onFinishMotionHandler):
-                onFinishMotionHandler()
+                onFinishMotionHandler(name, no)
             return
 
         if priority == MotionPriority.FORCE:
@@ -262,7 +265,10 @@ class LAppModel(L2DBaseModel):
         else:
             mtn = self.motions[name]
 
-        self.finishCallback = onFinishMotionHandler
+        self.curMotionGroup = name
+        self.curMotionNo = no
+        self.curMotionFinishHandler = onFinishMotionHandler
+
         if callable(onStartMotionHandler):
             onStartMotionHandler(name, no)
         log.Info(f"Start motion: {name} {no}")
