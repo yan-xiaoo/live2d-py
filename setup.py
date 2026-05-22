@@ -353,7 +353,6 @@ setup(
     author=AUTHOR,
     author_email=AUTHOR_EMAIL,
     license="MIT",
-    license_files=["LICENSE"],
     url=URL,
     install_requires=INSTALL_REQUIRES,
     ext_modules=[FakeExtension("LAppModelWrapper", ".")],
