@@ -1,14 +1,15 @@
 name: Windows-intel📦
 
 on:
+  workflow_dispatch:
   push:
     tags:
       - "v*.*.*"
-    branches: [ windows-workflow, build-all ]
+    branches: [ main, master, windows-workflow, build-all ]
 
 
 jobs:
-  build-n-publish:
+  build:
     name: Build📦 for Windows
     runs-on: windows-latest
     permissions:
@@ -46,16 +47,14 @@ jobs:
           name: screenshots-windows
           path: package/screenshot_*.png
 
-      - name: Install twine
-        run: python -m pip install twine
-
-      - name: Publish distribution to PyPI
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-        run: twine upload dist/* --skip-existing
+      - name: Upload Wheel Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-wheel-${{ matrix.python-version }}-${{ matrix.architecture }}
+          path: dist/*.whl
 
       - name: Upload Wheel to Release
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
         uses: softprops/action-gh-release@v2
         with:
           # tag_name: v0.2.2-alpha
