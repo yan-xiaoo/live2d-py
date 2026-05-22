@@ -52,6 +52,9 @@ target_include_directories(${V2_TARGET}
     PRIVATE ${CMAKE_SOURCE_DIR}/Live2D/Common
 )
 target_link_libraries(${V2_TARGET} PRIVATE glad)
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  target_link_libraries(${V2_TARGET} PRIVATE stdc++fs)
+endif()
 target_compile_features(${V2_TARGET} PUBLIC cxx_std_17)
 
 if(MSVC)

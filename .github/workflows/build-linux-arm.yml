@@ -2,9 +2,10 @@ name: Linux-arm64📦
 
 on:
   push:
-    tags:
-      - "v*.*.*"
-    branches: [ linux-workflow, build-all ]
+    # tags:
+    #   - "v*.*.*"
+    # Disable for now, as we have manylinux-arm64 version
+    branches: [ linux-workflow ] #, build-all ]
 
 
 jobs:

@@ -1,17 +1,18 @@
 <div align="center">
     <h1>
-        <img src="./docs/moeroid.ico" alt="koe" width="50px" height="50px">
+        <img src="./docs/assets/moeroid.ico" alt="koe" width="50px" height="50px">
         <span style="color: #ffc000ff">live</span><span style="color: #ed7d31ff">2d</span><span style="color: #2e75b6ff">-py</span>
     </h1>
 </div>
 
 <p align="center" style="font-family: 'Roboto', sans-serif; font-size: 1em; color: #555;">
-    <img title="Windows Distro" src="https://github.com/Arkueid/live2d-py/actions/workflows/build-windows.yml/badge.svg">
-    <img title="MacOS Distro" src="https://github.com/Arkueid/live2d-py/actions/workflows/build-macos.yml/badge.svg">
-    <img title="Linux Distro" src="https://github.com/Arkueid/live2d-py/actions/workflows/build-linux.yml/badge.svg">
-    <img title="Live2D Viewer Distro" src="https://github.com/Arkueid/live2d-py/actions/workflows/build-live2dviewer.yml/badge.svg">
+    <img title="Windows Distro" src="https://github.com/EasyLive2D/live2d-py/actions/workflows/build-windows.yml/badge.svg">
+    <img title="MacOS Distro" src="https://github.com/EasyLive2D/live2d-py/actions/workflows/build-macos.yml/badge.svg">
+    <img title="Linux x86_64 manylinux Distro" src="https://github.com/EasyLive2D/live2d-py/actions/workflows/build-linux-manylinux.yml/badge.svg">
+    <img title="Linux ARM64 manylinux Distro" src="https://github.com/EasyLive2D/live2d-py/actions/workflows/build-linux-arm-manylinux.yml/badge.svg">
+    <img title="Live2D Viewer Distro" src="https://github.com/EasyLive2D/live2d-py/actions/workflows/build-live2dviewer.yml/badge.svg">
     <br>
-    <img title="Release Version" src="https://img.shields.io/github/v/release/Arkueid/live2d-py" alt="Docker Build Version" style="margin: 0 10px;">
+    <img title="Release Version" src="https://img.shields.io/github/v/release/EasyLive2D/live2d-py" alt="Docker Build Version" style="margin: 0 10px;">
     <img title="Python Version" src="https://img.shields.io/badge/python-3.11+-blue" alt="Python Version" style="margin: 0 10px;">
     <img title="CMake" src="https://img.shields.io/badge/CMake-3.26+-orange" alt="CMake" style="margin: 0 10px;">
     <img title="C++" src="https://img.shields.io/badge/C%2B%2B-17-yellow" alt="C++17" style="margin: 0 10px;">
@@ -19,7 +20,7 @@
     <br>
     <img title="QQ Group" src="https://img.shields.io/badge/QQ群-783375488-brightgreen" style="margin: 0 10px;">
     <br>
-    <a href="https://github.com/Arkueid/live2d-py/blob/main/README.en.md">English README</a>
+    <a href="https://github.com/EasyLive2D/live2d-py/blob/main/README.en.md">English README</a>
 </p>
 
 **注意：本仓库不包含 Live2D Cubism Core 及 Framework（受许可限制），源码编译时需自行从 [Live2D官网](https://www.live2d.com/en/sdk/download/native/) 下载。**
@@ -30,7 +31,7 @@
 
 代码使用示例：[examples](./examples/)
 
-详细使用文档：[Wiki](https://github.com/Arkueid/live2d-py/wiki)
+详细使用文档：[Wiki](https://github.com/EasyLive2D/live2d-py/wiki)
 
 修改和开发：[CONTRIBUTING](./CONTRIBUTING.md)
 
@@ -82,7 +83,7 @@
 
 ## 使用说明
 
-1. 在 [Release](https://github.com/Arkueid/live2d-py/releases/latest) 中下载对应版本的 `whl` 文件并安装（推荐）
+1. 在 [Release](https://github.com/EasyLive2D/live2d-py/releases/latest) 中下载对应版本的 `whl` 文件并安装（推荐）
 
 ```shell
 pip install live2d_py-0.X.X-cpXXX-cpXXX-win_amd64.whl
@@ -94,7 +95,7 @@ pip install live2d_py-0.X.X-cpXXX-cpXXX-win_amd64.whl
 pip install live2d-py
 ```
 
-3. 从源码构建，参考 [安装#源码构建](https://github.com/Arkueid/live2d-py/wiki/%E5%AE%89%E8%A3%85#%E6%BA%90%E7%A0%81%E6%9E%84%E5%BB%BA)
+3. 从源码构建，参考 [安装#源码构建](https://github.com/EasyLive2D/live2d-py/wiki/%E5%AE%89%E8%A3%85#%E6%BA%90%E7%A0%81%E6%9E%84%E5%BB%BA)
 
 ## 示例
 
@@ -102,36 +103,36 @@ pip install live2d-py
 
 源码见 [main_facial_bind.py](./examples/main_facial_bind.py)
 
-![面捕-期末周破防](./docs/video_test.gif)
+![面捕-期末周破防](./docs/assets/video_test.gif)
 
 ### 基于 live2d-py C 模块及 Qt 开发的 Live2DViewer
 
-![Live2DViewer](./docs/live2dviewer.png)
+![Live2DViewer](./docs/assets/live2dviewer.png)
 
 
 ### 多模型加载
 
 源码见 [main_glfw_four_model.py](./examples/main_glfw_four_model.py)
 
-![multi_model](./docs/multi_model.png)
+![multi_model](./docs/assets/multi_model.png)
 
 ### 添加背景
 
 源码见 [main_pygame_background.py](./examples/main_pygame_background.py)
 
-![background](./docs/background.png)
+![background](./docs/assets/background.png)
 
 ### 模型变换 & 口型同步音频 & 点击测试
 
 源码见 [main_glfw.py](./examples/main_glfw.py)
 
-![完整用例](./docs/full%20demo.gif)
+![完整用例](./docs/assets/full%20demo.gif)
 
 ### 模型整体透明度示例
 
 源码见 [main_pyqt5_canvas_opacity.py](./examples/main_pyqt5_canvas_opacity.py)
 
-![opacity](./docs/opacity.gif)
+![opacity](./docs/assets/opacity.gif)
 
 ## 鸣谢
 
