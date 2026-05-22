@@ -33,7 +33,7 @@ docker exec ml bash -c '
     PYBIN="/opt/python/cp3${ver}-cp3${ver}/bin"
     [ -x "$PYBIN/python" ] || continue
     echo "=== $PYBIN/python ==="
-    "$PYBIN/pip" install wheel setuptools
+    "$PYBIN/pip" install "setuptools<82" wheel
     "$PYBIN/python" setup.py bdist_wheel
   done
 
