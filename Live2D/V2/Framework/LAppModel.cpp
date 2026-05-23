@@ -357,6 +357,14 @@ void LAppModel::update() {
     }
     mLive2DModel->getModelContext()->saveParam();
 
+    // Check motion finish callback
+    if (mCallbacksPending && mMainMotionMgr->isFinished()) {
+        if (mOnFinishMotion) mOnFinishMotion(mCurrentGroup, mCurrentNo);
+        mOnFinishMotion = nullptr;
+        mOnStartMotion = nullptr;
+        mCallbacksPending = false;
+    }
+
     // Python suppresses eye-blink while a main motion is active
     if (!updated && mAutoBlink && mEyeBlink)
         mEyeBlink->updateParam(mLive2DModel);
@@ -431,30 +439,41 @@ void LAppModel::setRandomExpression() {
         mExpressionMgr->startMotion(it->second, false);
     }
 }
-void LAppModel::startMotion(const std::string& group, int no, int priority) {
+void LAppModel::startMotion(const std::string& group, int no, int priority,
+                             StartCallback onStart, FinishCallback onFinish) {
+    mOnStartMotion = std::move(onStart);
+    mOnFinishMotion = std::move(onFinish);
     auto it = mMotions.find(group);
     if (it != mMotions.end() && !it->second.empty()) {
         if (no < 0 || no >= (int)it->second.size()) no = 0;
+        mCallbacksPending = true;
+        mCurrentGroup = group;
+        mCurrentNo = no;
+        if (mOnStartMotion) mOnStartMotion(group, no);
         Info("Start motion: group=%s no=%d priority=%d", group.c_str(), no, priority);
         mMainMotionMgr->startMotionPrio(it->second[no], priority);
+    } else {
+        if (mOnStartMotion) mOnStartMotion(group, no);
+        if (mOnFinishMotion) mOnFinishMotion(group, no);
+        mOnStartMotion = nullptr;
+        mOnFinishMotion = nullptr;
     }
 }
-void LAppModel::startRandomMotion(const std::string& group, int priority) {
+void LAppModel::startRandomMotion(const std::string& group, int priority,
+                                   StartCallback onStart, FinishCallback onFinish) {
     if (group.empty()) {
-        // Pick a random group from all available motions
         if (mMotions.empty()) return;
         int idx = rand() % (int)mMotions.size();
         auto it = mMotions.begin();
         std::advance(it, idx);
-        // Also pick a random motion within that group (match v2 Python)
         int count = (int)it->second.size();
         int no = (count > 1) ? (rand() % count) : 0;
-        startMotion(it->first, no, priority);
+        startMotion(it->first, no, priority, std::move(onStart), std::move(onFinish));
     } else {
         auto it = mMotions.find(group);
         int count = (it != mMotions.end()) ? (int)it->second.size() : 1;
         int no = (count > 1) ? (rand() % count) : 0;
-        startMotion(group, no, priority);
+        startMotion(group, no, priority, std::move(onStart), std::move(onFinish));
     }
 }
 void LAppModel::clearMotions() { mClearFlag = true; }

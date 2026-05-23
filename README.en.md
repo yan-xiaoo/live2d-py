@@ -1,18 +1,18 @@
 <div align="center">
     <h1>
-        <img src="./docs/moeroid.ico" alt="koe" width="50px" height="50px">
+        <img src="./docs/assets/moeroid.ico" alt="koe" width="50px" height="50px">
         <span style="color: #ffc000ff">live</span><span style="color: #ed7d31ff">2d</span><span style="color: #2e75b6ff">-py</span>
     </h1>
 </div>
 
 <p align="center" style="font-family: 'Roboto', sans-serif; font-size: 1em; color: #555;">
-    <img title="Windows Distro" src="https://github.com/Arkueid/live2d-py/actions/workflows/build-windows.yml/badge.svg">
-    <img title="MacOS Distro" src="https://github.com/Arkueid/live2d-py/actions/workflows/build-macos.yml/badge.svg">
-    <img title="MacOS Distro" src="https://github.com/Arkueid/live2d-py/actions/workflows/build-macos-intel.yml/badge.svg">
-    <img title="Linux Distro" src="https://github.com/Arkueid/live2d-py/actions/workflows/build-linux.yml/badge.svg">
-    <img title="Live2D Viewer Distro" src="https://github.com/Arkueid/live2d-py/actions/workflows/build-live2dviewer.yml/badge.svg">
+    <img title="Windows Distro" src="https://github.com/EasyLive2D/live2d-py/actions/workflows/build-windows.yml/badge.svg">
+    <img title="MacOS Distro" src="https://github.com/EasyLive2D/live2d-py/actions/workflows/build-macos.yml/badge.svg">
+    <img title="Linux x86_64 manylinux Distro" src="https://github.com/EasyLive2D/live2d-py/actions/workflows/build-linux-manylinux.yml/badge.svg">
+    <img title="Linux ARM64 manylinux Distro" src="https://github.com/EasyLive2D/live2d-py/actions/workflows/build-linux-arm-manylinux.yml/badge.svg">
+    <img title="Live2D Viewer Distro" src="https://github.com/EasyLive2D/live2d-py/actions/workflows/build-live2dviewer.yml/badge.svg">
     <br>
-    <img title="Release Version" src="https://img.shields.io/github/v/release/Arkueid/live2d-py" alt="Docker Build Version" style="margin: 0 10px;">
+    <img title="Release Version" src="https://img.shields.io/github/v/release/EasyLive2D/live2d-py" alt="Docker Build Version" style="margin: 0 10px;">
     <img title="Python Version" src="https://img.shields.io/badge/python-3.11+-blue" alt="Python Version" style="margin: 0 10px;">
     <img title="CMake" src="https://img.shields.io/badge/CMake-3.26+-orange" alt="CMake" style="margin: 0 10px;">
     <img title="C++" src="https://img.shields.io/badge/C%2B%2B-17-yellow" alt="C++17" style="margin: 0 10px;">
@@ -31,7 +31,7 @@ Theoretically, Live2D models can be rendered on any OpenGL-based windows in Pyth
 
 Code example: [examples](./examples/)
 
-Documentation：[Wiki](https://github.com/Arkueid/live2d-py/wiki)
+Documentation：[Wiki](https://github.com/EasyLive2D/live2d-py/wiki)
 
 Guide for dev：[CONTRIBUTING](./CONTRIBUTING.md)
 
@@ -80,7 +80,7 @@ Theoretically compatible with all UI libraries that can use OpenGL for rendering
 
 ## Installation
 
-1. Download the corresponding `.whl` file from [Releases](https://github.com/Arkueid/live2d-py/releases/latest) and install it (recommended):
+1. Download the corresponding `.whl` file from [Releases](https://github.com/EasyLive2D/live2d-py/releases/latest) and install it (recommended):
 ```shell
 pip install live2d_py-0.X.X-cpXXX-cpXXX-win_amd64.whl
 ```
@@ -90,7 +90,7 @@ pip install live2d_py-0.X.X-cpXXX-cpXXX-win_amd64.whl
 pip install live2d-py
 ```
 
-3. Build from source. Refer to [安装#源码构建](https://github.com/Arkueid/live2d-py/wiki/%E5%AE%89%E8%A3%85#%E6%BA%90%E7%A0%81%E6%9E%84%E5%BB%BA).
+3. Build from source. Refer to [安装#源码构建](https://github.com/EasyLive2D/live2d-py/wiki/%E5%AE%89%E8%A3%85#%E6%BA%90%E7%A0%81%E6%9E%84%E5%BB%BA).
 
 ## Demos
 
@@ -98,35 +98,35 @@ pip install live2d-py
 
 Source code: [main_facial_bind.py](./examples/main_facial_bind.py)
 
-![面捕-期末周破防](./docs/video_test.gif)
+![面捕-期末周破防](./docs/assets/video_test.gif)
 
 ### Live2DViewer based on live2d-py C Module and Qt
 
-![Live2DViewer](./docs/live2dviewer.png)
+![Live2DViewer](./docs/assets/live2dviewer.png)
 
 ### Multi-model rendering
 
 Source code: [main_glfw_four_model.py](./examples/main_glfw_four_model.py)
 
-![multi_model](./docs/multi_model.png)
+![multi_model](./docs/assets/multi_model.png)
 
 ### Rendering with background image
 
 Source code: [main_pygame_background.py](./examples/main_pygame_background.py)
 
-![background](./docs/background.png)
+![background](./docs/assets/background.png)
 
 ### Model transform & lipsync with wav & click test
 
 Source code: [main_glfw.py](./examples/main_glfw.py)
 
-![完整用例](./docs/full%20demo.gif)
+![完整用例](./docs/assets/full%20demo.gif)
 
 ### Model Opacity
 
 Source Code: [main_pyqt5_canvas_opacity.py](./examples/main_pyqt5_canvas_opacity.py)
 
-![opacity](./docs/opacity.gif)
+![opacity](./docs/assets/opacity.gif)
 
 ## Contributions
 Special thanks to the following users for their support and contributions to this project: [96bearli], [Ovizro], [AnyaCoder], [jahtim], [Honghe], [RobertMeow], [LUORANCHENG], [TinyKiecoo], [Barracuda72], [GuangChen2333], [makabakadot], [thynetruly], [mastwet], [KyvYang], @Mozilla88, @CooperWang0912, @minghf85
