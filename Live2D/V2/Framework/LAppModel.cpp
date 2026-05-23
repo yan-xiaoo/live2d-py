@@ -33,6 +33,7 @@ static std::vector<uint8_t> readFile(const std::string& path) {
     std::ifstream f(fp, std::ios::binary | std::ios::ate);
     if (!f) return {};
     auto sz = f.tellg(); f.seekg(0);
+    if (sz <= 0) return {};
     std::vector<uint8_t> data((size_t)sz);
     f.read((char*)data.data(), sz);
     return data;
@@ -87,6 +88,7 @@ bool LAppModel::loadModelJson(const std::string& path) {
     auto mocData = readFile(mocPath);
     if (mocData.empty()) return false;
     loadModelData(mocData, 0);
+    if (!mLive2DModel) return false;
     mModelMatrix.mWidth = (float)mLive2DModel->getCanvasWidth();
     mModelMatrix.mHeight = (float)mLive2DModel->getCanvasHeight();
     Info("Load model: %s", mocPath.c_str());
@@ -389,14 +391,14 @@ void LAppModel::update() {
 
     // Auto-breath animation (wall clock time, match v2 Python periods)
     if (mAutoBreath) {
-        float t = (float)UtSystem::getUserTimeMSec() / 1000.0f;
-        addParam("PARAM_ANGLE_X", 15.0f * sinf(t / 6.5345f), 0.5f);
-        addParam("PARAM_ANGLE_Y", 8.0f * sinf(t / 3.5345f), 0.5f);
-        addParam("PARAM_ANGLE_Z", 10.0f * sinf(t / 5.5345f), 0.5f);
-        addParam("PARAM_BODY_ANGLE_X", 4.0f * sinf(t / 15.5345f), 0.5f);
+        double t = UtSystem::getUserTimeMSec() / 1000.0;
+        addParam("PARAM_ANGLE_X", static_cast<float>(15.0 * sin(t / 6.5345)), 0.5f);
+        addParam("PARAM_ANGLE_Y", static_cast<float>(8.0 * sin(t / 3.5345)), 0.5f);
+        addParam("PARAM_ANGLE_Z", static_cast<float>(10.0 * sin(t / 5.5345)), 0.5f);
+        addParam("PARAM_BODY_ANGLE_X", static_cast<float>(4.0 * sin(t / 15.5345)), 0.5f);
         int breathIdx = mc->getParamIndex(&Id::getID("PARAM_BREATH"));
         if (breathIdx >= 0)
-            mc->setParamFloat(breathIdx, 0.5f + 0.5f * sinf(t / 3.2345f));
+            mc->setParamFloat(breathIdx, static_cast<float>(0.5 + 0.5 * sin(t / 3.2345)));
     }
 
     if (mPhysics) mPhysics->updateParam(mLive2DModel);

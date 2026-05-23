@@ -243,7 +243,7 @@ void ClippingManagerOpenGL::setupClip(ModelContext* mc, DrawParamOpenGL* dp) {
             auto* ctx = mc->getDrawContext(idx);
             dp->setClipMatrix(clip->mMatrixForMask.data());
             dp->mClipChannel = clip->mLayoutChannelNo;
-            dp->setClipBufPre_clipContextForMask((void*)1);
+            dp->setClipBufPre_clipContextForMask(clip);
             dd->draw(dp, mc, ctx);
             dp->setClipBufPre_clipContextForMask(nullptr);
         }

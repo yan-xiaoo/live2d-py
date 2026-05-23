@@ -5,9 +5,9 @@ namespace live2d {
 class ALive2DModel;
 struct MotionQueueEntry {
     AMotion* mMotion = nullptr; float mFadeIn = 0, mFadeOut = 0;
-    bool mStarted = false; float mStartTimeMs = 0;
-    float mFadeInStartMs = 0;  // for easing calculation
-    float mEndTimeMs = -1;     // for fade-out
+    bool mStarted = false; double mStartTimeMs = 0;
+    double mFadeInStartMs = 0;  // for easing calculation
+    double mEndTimeMs = -1;     // for fade-out
     bool mFinished = false;    // true when endTimeMs has passed
 };
 class L2DMotionManager {

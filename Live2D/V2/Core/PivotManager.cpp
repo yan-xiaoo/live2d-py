@@ -1,9 +1,9 @@
 #include "PivotManager.hpp"
 #include "ParamPivots.hpp"
 #include "BinaryReader.hpp"
+#include "Debug.hpp"
 #include "../Model/ModelContext.hpp"
 #include "DEF.hpp"
-#include <cstdio>
 #include <stdexcept>
 
 namespace live2d {
@@ -101,7 +101,7 @@ void PivotManager::calcPivotIndices(std::vector<int16_t>& indexArray,
                                    int interpolationCount) {
     int tableSize = 1 << interpolationCount;
     if (tableSize + 1 > PIVOT_TABLE_SIZE) {
-        printf("err 23245\n");
+        DBG("pivot table too large: %d", tableSize);
     }
 
     int paramCount = static_cast<int>(mParamPivotTable.size());
