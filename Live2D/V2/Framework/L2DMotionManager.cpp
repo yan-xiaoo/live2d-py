@@ -4,6 +4,15 @@
 #include "../Util/UtSystem.hpp"
 #include <cmath>
 namespace live2d {
+
+namespace {
+constexpr float kMinimumMainMotionFadeSec = 1.5f;
+
+float mainMotionFadeSec(float sec) {
+    return sec < kMinimumMainMotionFadeSec ? kMinimumMainMotionFadeSec : sec;
+}
+}
+
 L2DMotionManager::L2DMotionManager() = default;
 bool L2DMotionManager::reserveMotion(int priority) {
     if (priority < mReservePriority) return false;
@@ -13,8 +22,15 @@ bool L2DMotionManager::reserveMotion(int priority) {
 }
 int L2DMotionManager::startMotion(AMotion* motion, bool autoPriority) {
     double now = UtSystem::getUserTimeMSec();
+    const bool isMainMotion = dynamic_cast<Live2DMotion*>(motion) != nullptr;
     if (auto* liveMotion = dynamic_cast<Live2DMotion*>(motion)) {
         liveMotion->mFinished = false;
+    }
+    float fadeInSec = motion->mFadeInSec;
+    float fadeOutSec = motion->mFadeOutSec;
+    if (isMainMotion) {
+        fadeInSec = mainMotionFadeSec(fadeInSec);
+        fadeOutSec = mainMotionFadeSec(fadeOutSec);
     }
     // Fade out existing motions, matching Python v2: shorter end time wins
     for (auto& e : mMotions) {
@@ -24,7 +40,7 @@ int L2DMotionManager::startMotion(AMotion* motion, bool autoPriority) {
                 e.mEndTimeMs = newEnd;
         }
     }
-    mMotions.push_back({motion, motion->mFadeInSec, motion->mFadeOutSec, false,
+    mMotions.push_back({motion, fadeInSec, fadeOutSec, false,
                         now, now, -1.0});
     return (int)mMotions.size() - 1;
 }

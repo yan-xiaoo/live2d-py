@@ -391,7 +391,8 @@ void LAppModel::update() {
 
     // Auto-breath animation (wall clock time, match v2 Python periods)
     if (mAutoBreath) {
-        double t = UtSystem::getUserTimeMSec() / 1000.0;
+        constexpr double PI = 3.14159265358979323846;
+        double t = (UtSystem::getUserTimeMSec() / 1000.0) * 2.0 * PI;
         addParam("PARAM_ANGLE_X", static_cast<float>(15.0 * sin(t / 6.5345)), 0.5f);
         addParam("PARAM_ANGLE_Y", static_cast<float>(8.0 * sin(t / 3.5345)), 0.5f);
         addParam("PARAM_ANGLE_Z", static_cast<float>(10.0 * sin(t / 5.5345)), 0.5f);
