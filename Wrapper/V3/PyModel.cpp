@@ -64,8 +64,8 @@ static PyObject *PyModel_Init(PyModelObject *self, PyObject *args, PyObject *kwa
 }
 static void PyModel_Dealloc(PyModelObject *self, PyObject *args, PyObject *kwargs)
 {
-	delete self->model;
 	Info("deallocate: cpp Model(at=%p)", self->model);
+	delete self->model;
 	Info("deallocate: PyModelObject(at=%p)", self);
 	PyObject_Free(self);
 }
@@ -616,7 +616,7 @@ static PyObject *PyModel_CreateRenderer(PyModelObject *self, PyObject *args, PyO
 }
 static PyObject *PyModel_DestroyRenderer(PyModelObject *self, PyObject *args, PyObject *kwargs)
 {
-	self->model->DeleteRenderer();
+	self->model->DestroyRenderer();
 	Py_RETURN_NONE;
 }
 static PyObject *PyModel_Draw(PyModelObject *self, PyObject *args, PyObject *kwargs)

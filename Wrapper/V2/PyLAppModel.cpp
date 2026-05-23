@@ -1,4 +1,18 @@
 #include "PyLAppModel.hpp"
+#include "Python.hpp"
+
+// ---- Callback helpers (Python → C++ conversion, no live2d dependency) ----
+static auto MakeMotionCallback(PyObject* cb) -> std::function<void(const std::string&, int)> {
+    if (!cb || Py_IsNone(cb) || !PyCallable_Check(cb)) return nullptr;
+    Py_INCREF(cb);
+    return [cb](const std::string& g, int n) {
+        PyGILState_STATE s = PyGILState_Ensure();
+        PyObject* r = PyObject_CallFunction(cb, "si", g.c_str(), n);
+        if (r) Py_DECREF(r); else PyErr_Print();
+        Py_XDECREF(cb);
+        PyGILState_Release(s);
+    };
+}
 
 PyObject* PyLAppModel_new(PyTypeObject* type, PyObject*, PyObject*) {
     auto* self = (PyLAppModelObject*)PyObject_Malloc(sizeof(PyLAppModelObject));
@@ -202,19 +216,17 @@ static PyObject* PyLAppModel_StartRandomMotion(PyLAppModelObject* self, PyObject
     PyObject* nameObj = Py_None; PyObject* prioObj = Py_None;
     PyObject* onStart = nullptr; PyObject* onFinish = nullptr;
     static const char* kwlist[] = {"name", "priority", "onStartMotionHandler", "onFinishMotionHandler", nullptr};
-    // Accept either: StartRandomMotion(priority) or StartRandomMotion(name, priority)
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|OOOO", (char**)kwlist,
                                       &nameObj, &prioObj, &onStart, &onFinish))
         return nullptr;
 
-    int priority = 3; // default FORCE
+    int priority = 3;
     const char* group = nullptr;
     PyObject* utf8Ref = nullptr;
 
     if (prioObj != Py_None && PyLong_Check(prioObj)) {
         priority = (int)PyLong_AsLong(prioObj);
     }
-    // If first arg is int, treat it as priority (no group name)
     if (nameObj != Py_None) {
         if (PyLong_Check(nameObj)) {
             priority = (int)PyLong_AsLong(nameObj);
@@ -224,10 +236,10 @@ static PyObject* PyLAppModel_StartRandomMotion(PyLAppModelObject* self, PyObject
             group = PyBytes_AsString(utf8Ref);
         }
     }
-    if (group)
-        self->model->startRandomMotion(group, priority);
-    else
-        self->model->startRandomMotion("", priority);
+
+    auto sc = MakeMotionCallback(onStart);
+    auto fc = MakeMotionCallback(onFinish);
+    self->model->startRandomMotion(group ? group : "", priority, std::move(sc), std::move(fc));
     Py_XDECREF(utf8Ref);
     if (callNoArgCallback(onStart) < 0) return nullptr;
     if (setFinishCallback(self, onFinish) < 0) return nullptr;

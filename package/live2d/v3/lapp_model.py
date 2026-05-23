@@ -1,6 +1,6 @@
 """LAppModel — Python wrapper around C++ v3.Model."""
 import time
-from typing import Callable, Optional
+from typing import Optional
 
 from ._v3cpp import Model
 from .params import Parameter
@@ -27,6 +27,16 @@ class LAppModel:
         if not self._renderer_created:
             self._model.CreateRenderer(maskBufferCount)
             self._renderer_created = True
+    
+    def CreateRenderer(self, maskBufferCount: int = 2):
+        if not self._renderer_created:
+            self._model.CreateRenderer(maskBufferCount)
+            self._renderer_created = True
+    
+    def DestroyRenderer(self):
+        if self._renderer_created:
+            self._model.DestroyRenderer()
+            self._renderer_created = False
 
     def Resize(self, width: int, height: int):
         self._model.Resize(width, height)
