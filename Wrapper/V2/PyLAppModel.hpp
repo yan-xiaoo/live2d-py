@@ -5,6 +5,8 @@
 struct PyLAppModelObject {
     PyObject_HEAD
     live2d::LAppModel* model;
+    PyObject* onFinishMotionHandler;
+    bool lastMotionFinished;
 };
 
 extern PyType_Spec PyLAppModel_spec;

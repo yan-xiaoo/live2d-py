@@ -10,8 +10,8 @@
 #include "../Graphics/ClipContext.hpp"
 #include "../Graphics/DrawParamOpenGL.hpp"
 #include "../Core/PartsDataContext.hpp"
+#include "../Core/Debug.hpp"
 #include "../Util/UtInterpolate.hpp"
-#include <cstdio>
 #include <stdexcept>
 
 namespace live2d {
@@ -116,7 +116,7 @@ void Mesh::setupTransform(ModelContext* mc, IDrawContext* dc) {
             ctx->mTmpDeformerIndex = mc->getDeformerIndex(targetId);
 
         if (ctx->mTmpDeformerIndex < 0) {
-            printf("deformer not found: %s\n", targetId->str().c_str());
+            DBG("deformer not found: %s", targetId->str().c_str());
         } else {
             auto* deformer = mc->getDeformer(ctx->mTmpDeformerIndex);
             auto* deformerCtx = mc->getDeformerContext(ctx->mTmpDeformerIndex);

@@ -2,11 +2,11 @@
 #include "WarpContext.hpp"
 #include "DeformerContext.hpp"
 #include "../Core/BinaryReader.hpp"
+#include "../Core/Debug.hpp"
 #include "../Core/PivotManager.hpp"
 #include "../Model/ModelContext.hpp"
 #include "../Util/UtInterpolate.hpp"
 #include <cmath>
-#include <cstdio>
 #include <stdexcept>
 
 namespace live2d {
@@ -49,7 +49,7 @@ bool WarpDeformer::setupTransform(ModelContext* mc, DeformerContext* dc) {
             wctx->mTmpDeformerIndex = mc->getDeformerIndex(targetId);
 
         if (wctx->mTmpDeformerIndex < 0) {
-            printf("deformer is not reachable\n");
+            DBG("deformer is not reachable");
             wctx->setAvailable(false);
         } else {
             auto* parentDef = mc->getDeformer(wctx->mTmpDeformerIndex);

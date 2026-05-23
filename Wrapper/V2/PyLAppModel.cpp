@@ -4,23 +4,64 @@ PyObject* PyLAppModel_new(PyTypeObject* type, PyObject*, PyObject*) {
     auto* self = (PyLAppModelObject*)PyObject_Malloc(sizeof(PyLAppModelObject));
     if (!self) return nullptr;
     PyObject_Init((PyObject*)self, type);
+    self->model = nullptr;
+    self->onFinishMotionHandler = nullptr;
+    self->lastMotionFinished = true;
     return (PyObject*)self;
 }
 
 int PyLAppModel_init(PyLAppModelObject* self, PyObject*, PyObject*) {
     self->model = new live2d::LAppModel();
+    self->lastMotionFinished = true;
     return 0;
 }
 
 void PyLAppModel_dealloc(PyLAppModelObject* self) {
+    Py_XDECREF(self->onFinishMotionHandler);
+    self->onFinishMotionHandler = nullptr;
     delete self->model;
+    self->model = nullptr;
     PyObject_Free(self);
 }
 
-static PyObject* PyLAppModel_LoadModelJson(PyLAppModelObject* self, PyObject* args) {
+static int callNoArgCallback(PyObject* callback) {
+    if (!callback || callback == Py_None) return 0;
+    PyObject* result = PyObject_CallObject(callback, nullptr);
+    if (!result) return -1;
+    Py_DECREF(result);
+    return 0;
+}
+
+static int setFinishCallback(PyLAppModelObject* self, PyObject* callback) {
+    PyObject* next = (callback && callback != Py_None) ? callback : nullptr;
+    Py_XINCREF(next);
+    Py_XDECREF(self->onFinishMotionHandler);
+    self->onFinishMotionHandler = next;
+    self->lastMotionFinished = self->model ? self->model->isMotionFinished() : true;
+    return 0;
+}
+
+static int fireFinishCallbackIfNeeded(PyLAppModelObject* self) {
+    if (!self->model) return 0;
+    bool finished = self->model->isMotionFinished();
+    if (!self->lastMotionFinished && finished && self->onFinishMotionHandler) {
+        PyObject* callback = self->onFinishMotionHandler;
+        self->onFinishMotionHandler = nullptr;
+        if (callNoArgCallback(callback) < 0) {
+            Py_DECREF(callback);
+            return -1;
+        }
+        Py_DECREF(callback);
+    }
+    self->lastMotionFinished = finished;
+    return 0;
+}
+
+static PyObject* PyLAppModel_LoadModelJson(PyLAppModelObject* self, PyObject* args, PyObject* kwargs) {
     const char* path;
     const char* version = nullptr; int disablePrecision = 0;
-    if (!PyArg_ParseTuple(args, "s|sp", &path, &version, &disablePrecision)) return nullptr;
+    static const char* kwlist[] = {"path", "version", "disable_precision", nullptr};
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "s|sp", (char**)kwlist, &path, &version, &disablePrecision)) return nullptr;
     try {
         bool ok = self->model->loadModelJson(path);
         return PyBool_FromLong(ok ? 1 : 0);
@@ -111,7 +152,9 @@ static PyObject* PyLAppModel_SetPartOpacity(PyLAppModelObject* self, PyObject* a
 }
 
 static PyObject* PyLAppModel_Update(PyLAppModelObject* self, PyObject*) {
-    self->model->update(); Py_RETURN_NONE;
+    self->model->update();
+    if (fireFinishCallbackIfNeeded(self) < 0) return nullptr;
+    Py_RETURN_NONE;
 }
 
 static PyObject* PyLAppModel_Draw(PyLAppModelObject* self, PyObject*) {
@@ -139,13 +182,19 @@ static PyObject* PyLAppModel_SetRandomExpression(PyLAppModelObject* self, PyObje
 static PyObject* PyLAppModel_StartMotion(PyLAppModelObject* self, PyObject* args, PyObject* kwargs) {
     const char* group; int no, priority;
     PyObject* onStart = nullptr; PyObject* onFinish = nullptr;
-    static const char* kwlist[] = {"", "", "", "onStartMotionHandler", "onFinishMotionHandler", nullptr};
+    static const char* kwlist[] = {"group", "no", "priority", "onStartMotionHandler", "onFinishMotionHandler", nullptr};
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "sii|OO", (char**)kwlist,
                                       &group, &no, &priority, &onStart, &onFinish))
         return nullptr;
     self->model->startMotion(group, no, priority);
-    // Callbacks ignored for now (motion system is stubbed)
-    (void)onStart; (void)onFinish;
+    if (callNoArgCallback(onStart) < 0) return nullptr;
+    if (setFinishCallback(self, onFinish) < 0) return nullptr;
+    if (self->model->isMotionFinished() && onFinish && onFinish != Py_None) {
+        if (callNoArgCallback(onFinish) < 0) return nullptr;
+        setFinishCallback(self, nullptr);
+    } else {
+        self->lastMotionFinished = false;
+    }
     Py_RETURN_NONE;
 }
 
@@ -180,7 +229,14 @@ static PyObject* PyLAppModel_StartRandomMotion(PyLAppModelObject* self, PyObject
     else
         self->model->startRandomMotion("", priority);
     Py_XDECREF(utf8Ref);
-    (void)onStart; (void)onFinish;
+    if (callNoArgCallback(onStart) < 0) return nullptr;
+    if (setFinishCallback(self, onFinish) < 0) return nullptr;
+    if (self->model->isMotionFinished() && onFinish && onFinish != Py_None) {
+        if (callNoArgCallback(onFinish) < 0) return nullptr;
+        setFinishCallback(self, nullptr);
+    } else {
+        self->lastMotionFinished = false;
+    }
     Py_RETURN_NONE;
 }
 
@@ -314,7 +370,7 @@ static PyGetSetDef PyLAppModel_getset[] = {
 };
 
 PyMethodDef PyLAppModel_methods[] = {
-    {"LoadModelJson", (PyCFunction)PyLAppModel_LoadModelJson, METH_VARARGS, ""},
+    {"LoadModelJson", (PyCFunction)PyLAppModel_LoadModelJson, METH_VARARGS | METH_KEYWORDS, ""},
     {"Resize", (PyCFunction)PyLAppModel_Resize, METH_VARARGS, ""},
     {"Drag", (PyCFunction)PyLAppModel_Drag, METH_VARARGS, ""},
     {"IsMotionFinished", (PyCFunction)PyLAppModel_IsMotionFinished, METH_NOARGS, ""},
