@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Callable, Optional
 from ..v2.params import Parameter
 
 
@@ -68,11 +68,40 @@ class LAppModel:
     def SetRandomExpression(self) -> None:
         """Start a random expression."""
         ...
-    def StartMotion(self, group: str, no: int, priority: int) -> None:
+    def StartMotion(
+        self,
+        group: str,
+        no: int,
+        priority: int,
+        onStartMotionHandler: Optional[Callable[[str, int], Any]] = None,
+        onFinishMotionHandler: Optional[Callable[[str, int], Any]] = None,
+    ) -> None:
         """Start a motion from a group by index and priority."""
         ...
-    def StartRandomMotion(self, group: str = "", priority: int = 1) -> None:
+    def StartRandomMotion(
+        self,
+        group: str = "",
+        priority: int = 1,
+        onStartMotionHandler: Optional[Callable[[str, int], Any]] = None,
+        onFinishMotionHandler: Optional[Callable[[str, int], Any]] = None,
+    ) -> None:
         """Start a random motion. If group is empty, picks from all motions."""
+        ...
+    def LoadMotion(self, path: str, group: Optional[str] = None) -> int:
+        """
+        Load a motion file from disk, return its number in selected group.
+        If group is set to None, the motion will be placed inside group "__live2d_py_external".
+        If the file cannot be found, a FileNotFoundError will be raised.
+        """
+        ...
+    def StartLoadedMotion(
+        self,
+        no: int,
+        priority: int = 3,
+        onStartMotionHandler: Optional[Callable[[str, int], Any]] = None,
+        onFinishMotionHandler: Optional[Callable[[str, int], Any]] = None,
+    ) -> None:
+        """Start a motion previously loaded into the default external motion group."""
         ...
     def GetCanvasWidth(self) -> float:
         """Get model canvas width."""

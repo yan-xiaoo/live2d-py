@@ -19,6 +19,7 @@
 #include <stb_image.h>
 #include "Log.hpp"
 #include <fstream>
+#include <string>
 #include <vector>
 #include <sstream>
 #include <cmath>
@@ -476,6 +477,20 @@ void LAppModel::startRandomMotion(const std::string& group, int priority,
         int no = (count > 1) ? (rand() % count) : 0;
         startMotion(group, no, priority, std::move(onStart), std::move(onFinish));
     }
+}
+void LAppModel::startLoadedMotion(int no, int priority,
+                                   StartCallback onStart, FinishCallback onFinish) {
+    startMotion("__live2d_py_external", no, priority, std::move(onStart), std::move(onFinish));
+}
+int LAppModel::loadMotion(const std::string& path, const std::string& group) {
+    auto data = readFile(path);
+    if (!data.empty()) {
+        auto* m = Live2DMotion::load(data);
+        auto& motion = mMotions[group];
+        motion.push_back(m);
+        return (int)motion.size() - 1;
+    }
+    return -1;
 }
 void LAppModel::clearMotions() { mClearFlag = true; }
 void LAppModel::resetExpression() { mExpressionMgr->stopAllMotions(); }
