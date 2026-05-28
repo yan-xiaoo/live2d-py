@@ -37,6 +37,9 @@ public:
                      StartCallback onStart = nullptr, FinishCallback onFinish = nullptr);
     void startRandomMotion(const std::string& group, int priority,
                            StartCallback onStart = nullptr, FinishCallback onFinish = nullptr);
+    void startLoadedMotion(int no, int priority,
+                           StartCallback onStart = nullptr, FinishCallback onFinish = nullptr);
+    int loadMotion(const std::string& path, const std::string& group = "__live2d_py_external");
     void clearMotions();
     void stopAllMotions() { clearMotions(); }
     void resetExpression();
