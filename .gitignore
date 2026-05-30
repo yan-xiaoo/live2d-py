@@ -14,6 +14,9 @@ glew/doc
 **/__pycache__
 
 **/.idea
+**/CMakeFiles/**
+Live2D/Glad/
+Live2D/V2/Framework/
 
 **/*.mp4
 **/*.wav
