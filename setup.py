@@ -274,31 +274,29 @@ def run_cmake():
     else:
         cmake_args += ["-DCMAKE_BUILD_TYPE=" + "Release"]
         build_args += ["--", "-j2"]
-    build_folder = os.path.join(os.getcwd(), "build")
+    source_folder = os.path.dirname(os.path.abspath(__file__))
+    build_folder = os.path.join(source_folder, "build")
 
     if not os.path.exists(build_folder):
         os.makedirs(build_folder)
 
-    if is_virtualenv():
-        python_installation_path = get_base_python_path(os.environ["VIRTUAL_ENV"])
-    else:
-        python_installation_path = os.path.split(sys.executable)[0]
-    print("Python installation path: " + python_installation_path)
+    python_executable = sys.executable
+    print("Python executable: " + python_executable)
     sys.stdout.flush()
 
-    cmake_args += ["-DPYTHON_INSTALLATION_PATH=" + python_installation_path]
+    cmake_args += ["-DPython3_EXECUTABLE=" + python_executable]
     cmake_args += ["-UVIEWER"]
 
-    cmake_setup = ["cmake", ".."] + cmake_args
-    cmake_build = ["cmake", "--build", "."] + build_args
+    cmake_setup = ["cmake", "-S", source_folder, "-B", build_folder] + cmake_args
+    cmake_build = ["cmake", "--build", build_folder] + build_args
 
     print("Building extension for Python {}".format(sys.version.split("\n", 1)[0]))
     print("Invoking CMake setup: '{}'".format(" ".join(cmake_setup)))
     sys.stdout.flush()
-    subprocess.check_call(cmake_setup, cwd=build_folder)
+    subprocess.check_call(cmake_setup)
     print("Invoking CMake build: '{}'".format(" ".join(cmake_build)))
     sys.stdout.flush()
-    subprocess.check_call(cmake_build, cwd=build_folder)
+    subprocess.check_call(cmake_build)
 
     cmake_built = True
 
@@ -352,7 +350,6 @@ setup(
     long_description_content_type="text/markdown",
     author=AUTHOR,
     author_email=AUTHOR_EMAIL,
-    license="LICENSE",
     url=URL,
     install_requires=INSTALL_REQUIRES,
     ext_modules=[FakeExtension("LAppModelWrapper", ".")],

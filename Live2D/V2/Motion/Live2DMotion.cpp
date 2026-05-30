@@ -6,6 +6,7 @@
 #include <cstring>
 #include <sstream>
 #include <cmath>
+#include <cctype>
 
 namespace live2d {
 
@@ -79,14 +80,21 @@ while (std::getline(ss, line)) {
         std::string val = line.substr(eq + 1);
         // Strip leading '$' from key (MTN format: $fps=30)
         if (!key.empty() && key[0] == '$') key = key.substr(1);
+        std::string controlKey = key;
+        for (char& ch : controlKey)
+            ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
 
-        if (key == "fps") {
+        if (controlKey == "FPS") {
             m->mFps = (float)std::strtof(val.c_str(), nullptr);
         }
-        else if (key == "FADEIN") { m->mFadeInSec = (float)std::atoi(val.c_str()) / 1000.0f; }
-        else if (key == "FADEOUT") { m->mFadeOutSec = (float)std::atoi(val.c_str()) / 1000.0f; }
-        else if (key == "LOOP") { m->mLoop = (val == "1" || val == "true"); }
-        else if (key == "LOOPFADEIN") { m->mLoopFadeIn = (val == "1" || val == "true"); }
+        else if (controlKey == "FADEIN") { m->mFadeInSec = (float)std::atoi(val.c_str()) / 1000.0f; }
+        else if (controlKey == "FADEOUT") { m->mFadeOutSec = (float)std::atoi(val.c_str()) / 1000.0f; }
+        else if (controlKey == "LOOP") { m->mLoop = (val == "1" || val == "true"); }
+        else if (controlKey == "LOOPFADEIN") { m->mLoopFadeIn = (val == "1" || val == "true"); }
+        else if (controlKey.find("FADEIN:") == 0 || controlKey.find("FADEOUT:") == 0) {
+            // Per-parameter fade entries are metadata, not model parameters.
+            continue;
+        }
         else {
             Motion motion;
             if (key.find("VISIBLE:") == 0) {

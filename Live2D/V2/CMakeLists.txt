@@ -33,6 +33,7 @@ add_library(${V2_TARGET} STATIC
     Framework/L2DEyeBlink.cpp
     Framework/L2DPose.cpp
     Framework/L2DPhysics.cpp
+    Framework/PhysicsHair.cpp
     Framework/L2DExpressionMotion.cpp
     Framework/L2DMotionManager.cpp
     Framework/L2DBaseModel.cpp
@@ -51,6 +52,9 @@ target_include_directories(${V2_TARGET}
     PRIVATE ${CMAKE_SOURCE_DIR}/Live2D/Common
 )
 target_link_libraries(${V2_TARGET} PRIVATE glad)
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  target_link_libraries(${V2_TARGET} PRIVATE stdc++fs)
+endif()
 target_compile_features(${V2_TARGET} PUBLIC cxx_std_17)
 
 if(MSVC)

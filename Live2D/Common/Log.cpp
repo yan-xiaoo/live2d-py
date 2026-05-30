@@ -8,7 +8,7 @@
 #define TAG "live2d-py"
 #endif
 
-std::atomic<bool> sLive2DLogEnable(true);
+std::atomic<bool> sLive2DLogEnable(false);
 std::atomic<int> sLive2DLogLevel(LV_INFO);
 
 void EnableLive2DLog(bool on)

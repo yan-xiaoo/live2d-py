@@ -16,7 +16,6 @@ public:
     L2DBaseModel();
     virtual ~L2DBaseModel();
     void loadModelData(const std::vector<uint8_t>& data, int version);
-    void loadTexture(int no, const std::string& path);
     AMotion* loadMotion(const std::string& name, const std::vector<uint8_t>& data);
     AMotion* loadExpression(const std::string& name, const std::vector<uint8_t>& data);
     L2DPose* loadPose(const std::vector<uint8_t>& data);

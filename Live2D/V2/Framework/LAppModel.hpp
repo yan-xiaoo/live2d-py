@@ -3,10 +3,14 @@
 #include "L2DTargetPoint.hpp"
 #include "MatrixManager.hpp"
 #include "../Model/Live2DModelOpenGL.hpp"
+#include <functional>
 #include <string>
 namespace live2d {
 class LAppModel : public L2DBaseModel {
 public:
+    using StartCallback = std::function<void(const std::string&, int)>;
+    using FinishCallback = std::function<void(const std::string&, int)>;
+
     LAppModel();
     ~LAppModel() override;
     bool loadModelJson(const std::string& path);
@@ -29,8 +33,13 @@ public:
     bool hitTest(const std::string& area, float x, float y);
     void setExpression(const std::string& name);
     void setRandomExpression();
-    void startMotion(const std::string& group, int no, int priority);
-    void startRandomMotion(const std::string& group, int priority);
+    void startMotion(const std::string& group, int no, int priority,
+                     StartCallback onStart = nullptr, FinishCallback onFinish = nullptr);
+    void startRandomMotion(const std::string& group, int priority,
+                           StartCallback onStart = nullptr, FinishCallback onFinish = nullptr);
+    void startLoadedMotion(int no, int priority,
+                           StartCallback onStart = nullptr, FinishCallback onFinish = nullptr);
+    int loadMotion(const std::string& path, const std::string& group = "__live2d_py_external");
     void clearMotions();
     void stopAllMotions() { clearMotions(); }
     void resetExpression();
@@ -55,5 +64,10 @@ public:
     bool mAutoBreath = true, mAutoBlink = true;
     bool mClearFlag = false;
     std::string mModelHomeDir;
+private:
+    StartCallback mOnStartMotion;
+    FinishCallback mOnFinishMotion;
+    bool mCallbacksPending = false;
+    std::string mCurrentGroup; int mCurrentNo = 0;
 };
 } // namespace live2d

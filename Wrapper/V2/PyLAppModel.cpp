@@ -1,26 +1,102 @@
 #include "PyLAppModel.hpp"
+#include "Python.hpp"
+#include <memory>
+
+// ---- Callback helpers (Python → C++ conversion, no live2d dependency) ----
+struct PyCallbackRef {
+    explicit PyCallbackRef(PyObject* callback) : cb(callback) { Py_XINCREF(cb); }
+    ~PyCallbackRef() {
+        if (!cb) return;
+        PyGILState_STATE s = PyGILState_Ensure();
+        Py_DECREF(cb);
+        PyGILState_Release(s);
+    }
+    PyObject* cb = nullptr;
+};
+
+static auto MakeMotionCallback(PyObject* cb) -> std::function<void(const std::string&, int)> {
+    if (!cb || Py_IsNone(cb) || !PyCallable_Check(cb)) return nullptr;
+    auto callback = std::make_shared<PyCallbackRef>(cb);
+    return [callback](const std::string& g, int n) {
+        PyGILState_STATE s = PyGILState_Ensure();
+        PyObject* r = PyObject_CallFunction(callback->cb, "si", g.c_str(), n);
+        if (r) Py_DECREF(r); else PyErr_Print();
+        PyGILState_Release(s);
+    };
+}
 
 PyObject* PyLAppModel_new(PyTypeObject* type, PyObject*, PyObject*) {
     auto* self = (PyLAppModelObject*)PyObject_Malloc(sizeof(PyLAppModelObject));
     if (!self) return nullptr;
     PyObject_Init((PyObject*)self, type);
+    self->model = nullptr;
+    self->onFinishMotionHandler = nullptr;
+    self->lastMotionFinished = true;
     return (PyObject*)self;
 }
 
 int PyLAppModel_init(PyLAppModelObject* self, PyObject*, PyObject*) {
     self->model = new live2d::LAppModel();
+    self->lastMotionFinished = true;
     return 0;
 }
 
 void PyLAppModel_dealloc(PyLAppModelObject* self) {
+    Py_XDECREF(self->onFinishMotionHandler);
+    self->onFinishMotionHandler = nullptr;
     delete self->model;
+    self->model = nullptr;
     PyObject_Free(self);
 }
 
-static PyObject* PyLAppModel_LoadModelJson(PyLAppModelObject* self, PyObject* args) {
+static int callNoArgCallback(PyObject* callback) {
+    if (!callback || callback == Py_None) return 0;
+    PyObject* result = PyObject_CallObject(callback, nullptr);
+    if (!result) return -1;
+    Py_DECREF(result);
+    return 0;
+}
+
+static int setFinishCallback(PyLAppModelObject* self, PyObject* callback) {
+    PyObject* next = (callback && callback != Py_None) ? callback : nullptr;
+    Py_XINCREF(next);
+    Py_XDECREF(self->onFinishMotionHandler);
+    self->onFinishMotionHandler = next;
+    self->lastMotionFinished = self->model ? self->model->isMotionFinished() : true;
+    return 0;
+}
+
+static int fireFinishCallbackIfNeeded(PyLAppModelObject* self) {
+    if (!self->model) return 0;
+    bool finished = self->model->isMotionFinished();
+    if (!self->lastMotionFinished && finished && self->onFinishMotionHandler) {
+        PyObject* callback = self->onFinishMotionHandler;
+        self->onFinishMotionHandler = nullptr;
+        if (callNoArgCallback(callback) < 0) {
+            Py_DECREF(callback);
+            return -1;
+        }
+        Py_DECREF(callback);
+    }
+    self->lastMotionFinished = finished;
+    return 0;
+}
+
+static void raiseFileNotFoundError(const char* path) {
+    PyObject* builtins = PyImport_ImportModule("builtins");
+    if (!builtins) return;
+    PyObject* exc = PyObject_GetAttrString(builtins, "FileNotFoundError");
+    Py_DECREF(builtins);
+    if (!exc) return;
+    PyErr_Format(exc, "Motion file not found: %s", path);
+    Py_DECREF(exc);
+}
+
+static PyObject* PyLAppModel_LoadModelJson(PyLAppModelObject* self, PyObject* args, PyObject* kwargs) {
     const char* path;
     const char* version = nullptr; int disablePrecision = 0;
-    if (!PyArg_ParseTuple(args, "s|sp", &path, &version, &disablePrecision)) return nullptr;
+    static const char* kwlist[] = {"path", "version", "disable_precision", nullptr};
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "s|sp", (char**)kwlist, &path, &version, &disablePrecision)) return nullptr;
     try {
         bool ok = self->model->loadModelJson(path);
         return PyBool_FromLong(ok ? 1 : 0);
@@ -111,7 +187,9 @@ static PyObject* PyLAppModel_SetPartOpacity(PyLAppModelObject* self, PyObject* a
 }
 
 static PyObject* PyLAppModel_Update(PyLAppModelObject* self, PyObject*) {
-    self->model->update(); Py_RETURN_NONE;
+    self->model->update();
+    if (fireFinishCallbackIfNeeded(self) < 0) return nullptr;
+    Py_RETURN_NONE;
 }
 
 static PyObject* PyLAppModel_Draw(PyLAppModelObject* self, PyObject*) {
@@ -139,33 +217,37 @@ static PyObject* PyLAppModel_SetRandomExpression(PyLAppModelObject* self, PyObje
 static PyObject* PyLAppModel_StartMotion(PyLAppModelObject* self, PyObject* args, PyObject* kwargs) {
     const char* group; int no, priority;
     PyObject* onStart = nullptr; PyObject* onFinish = nullptr;
-    static const char* kwlist[] = {"", "", "", "onStartMotionHandler", "onFinishMotionHandler", nullptr};
+    static const char* kwlist[] = {"group", "no", "priority", "onStartMotionHandler", "onFinishMotionHandler", nullptr};
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "sii|OO", (char**)kwlist,
                                       &group, &no, &priority, &onStart, &onFinish))
         return nullptr;
-    self->model->startMotion(group, no, priority);
-    // Callbacks ignored for now (motion system is stubbed)
-    (void)onStart; (void)onFinish;
+    auto sc = MakeMotionCallback(onStart);
+    auto fc = MakeMotionCallback(onFinish);
+    self->model->startMotion(group, no, priority, std::move(sc), std::move(fc));
     Py_RETURN_NONE;
 }
 
 static PyObject* PyLAppModel_StartRandomMotion(PyLAppModelObject* self, PyObject* args, PyObject* kwargs) {
     PyObject* nameObj = Py_None; PyObject* prioObj = Py_None;
     PyObject* onStart = nullptr; PyObject* onFinish = nullptr;
-    static const char* kwlist[] = {"name", "priority", "onStartMotionHandler", "onFinishMotionHandler", nullptr};
-    // Accept either: StartRandomMotion(priority) or StartRandomMotion(name, priority)
+    static const char* kwlist[] = {"group", "priority", "onStartMotionHandler", "onFinishMotionHandler", nullptr};
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|OOOO", (char**)kwlist,
-                                      &nameObj, &prioObj, &onStart, &onFinish))
-        return nullptr;
+                                      &nameObj, &prioObj, &onStart, &onFinish)) {
+        PyErr_Clear();
+        nameObj = Py_None; prioObj = Py_None; onStart = nullptr; onFinish = nullptr;
+        static const char* legacyKwlist[] = {"name", "priority", "onStartMotionHandler", "onFinishMotionHandler", nullptr};
+        if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|OOOO", (char**)legacyKwlist,
+                                          &nameObj, &prioObj, &onStart, &onFinish))
+            return nullptr;
+    }
 
-    int priority = 3; // default FORCE
+    int priority = 1;
     const char* group = nullptr;
     PyObject* utf8Ref = nullptr;
 
     if (prioObj != Py_None && PyLong_Check(prioObj)) {
         priority = (int)PyLong_AsLong(prioObj);
     }
-    // If first arg is int, treat it as priority (no group name)
     if (nameObj != Py_None) {
         if (PyLong_Check(nameObj)) {
             priority = (int)PyLong_AsLong(nameObj);
@@ -175,12 +257,66 @@ static PyObject* PyLAppModel_StartRandomMotion(PyLAppModelObject* self, PyObject
             group = PyBytes_AsString(utf8Ref);
         }
     }
-    if (group)
-        self->model->startRandomMotion(group, priority);
-    else
-        self->model->startRandomMotion("", priority);
+
+    auto sc = MakeMotionCallback(onStart);
+    auto fc = MakeMotionCallback(onFinish);
+    self->model->startRandomMotion(group ? group : "", priority, std::move(sc), std::move(fc));
     Py_XDECREF(utf8Ref);
-    (void)onStart; (void)onFinish;
+    Py_RETURN_NONE;
+}
+
+static PyObject* PyLAppModel_LoadMotion(PyLAppModelObject* self, PyObject* args, PyObject* kwargs)
+{
+    const char* path = nullptr;
+    PyObject* groupObj = Py_None;
+
+    static const char* kwlist[] = {"path", "group", nullptr};
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "s|O", (char**)kwlist,
+                                      &path, &groupObj))
+        return nullptr;
+
+    const char* group = nullptr;
+    PyObject* groupUtf8 = nullptr;
+
+    if (groupObj == Py_None) {
+        group = nullptr;
+    } else {
+        groupUtf8 = PyUnicode_AsUTF8String(groupObj);
+        if (!groupUtf8) return nullptr; // 非 str 会在这里触发 TypeError
+        group = PyBytes_AsString(groupUtf8);
+    }
+
+    int no;
+    if (group == nullptr){
+        no = self->model->loadMotion(path);
+    } else {
+        no = self->model->loadMotion(path, group);
+    }
+
+    Py_XDECREF(groupUtf8);
+
+    if (no == -1) {
+        raiseFileNotFoundError(path);
+        return nullptr;
+    }
+
+    return PyLong_FromLong(no);
+}
+
+static PyObject* PyLAppModel_StartLoadedMotion(PyLAppModelObject* self, PyObject* args, PyObject* kwargs)
+{
+    int no;
+    int priority = 3;
+    PyObject* onStart = nullptr;
+    PyObject* onFinish = nullptr;
+    static const char* kwlist[] = {"no", "priority", "onStartMotionHandler", "onFinishMotionHandler", nullptr};
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "i|iOO", (char**)kwlist,
+                                      &no, &priority, &onStart, &onFinish))
+        return nullptr;
+
+    auto sc = MakeMotionCallback(onStart);
+    auto fc = MakeMotionCallback(onFinish);
+    self->model->startLoadedMotion(no, priority, std::move(sc), std::move(fc));
     Py_RETURN_NONE;
 }
 
@@ -314,7 +450,7 @@ static PyGetSetDef PyLAppModel_getset[] = {
 };
 
 PyMethodDef PyLAppModel_methods[] = {
-    {"LoadModelJson", (PyCFunction)PyLAppModel_LoadModelJson, METH_VARARGS, ""},
+    {"LoadModelJson", (PyCFunction)PyLAppModel_LoadModelJson, METH_VARARGS | METH_KEYWORDS, ""},
     {"Resize", (PyCFunction)PyLAppModel_Resize, METH_VARARGS, ""},
     {"Drag", (PyCFunction)PyLAppModel_Drag, METH_VARARGS, ""},
     {"IsMotionFinished", (PyCFunction)PyLAppModel_IsMotionFinished, METH_NOARGS, ""},
@@ -346,6 +482,8 @@ PyMethodDef PyLAppModel_methods[] = {
     {"SetRandomExpression", (PyCFunction)PyLAppModel_SetRandomExpression, METH_NOARGS, ""},
     {"StartMotion", (PyCFunction)PyLAppModel_StartMotion, METH_VARARGS | METH_KEYWORDS, ""},
     {"StartRandomMotion", (PyCFunction)PyLAppModel_StartRandomMotion, METH_VARARGS | METH_KEYWORDS, ""},
+    {"LoadMotion", (PyCFunction)PyLAppModel_LoadMotion, METH_VARARGS | METH_KEYWORDS, ""},
+    {"StartLoadedMotion", (PyCFunction)PyLAppModel_StartLoadedMotion, METH_VARARGS | METH_KEYWORDS, ""},
     {"GetCanvasWidth", (PyCFunction)PyLAppModel_GetCanvasWidth, METH_NOARGS, ""},
     {"GetCanvasSize", (PyCFunction)PyLAppModel_GetCanvasSize, METH_NOARGS, ""},
     {"GetCanvasWidth", (PyCFunction)PyLAppModel_GetCanvasWidth, METH_NOARGS, ""},

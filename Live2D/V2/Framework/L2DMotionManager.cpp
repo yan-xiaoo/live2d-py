@@ -1,8 +1,18 @@
 #include "L2DMotionManager.hpp"
 #include "../Model/ALive2DModel.hpp"
+#include "../Motion/Live2DMotion.hpp"
 #include "../Util/UtSystem.hpp"
 #include <cmath>
 namespace live2d {
+
+namespace {
+constexpr float kMinimumMainMotionFadeSec = 1.5f;
+
+float mainMotionFadeSec(float sec) {
+    return sec < kMinimumMainMotionFadeSec ? kMinimumMainMotionFadeSec : sec;
+}
+}
+
 L2DMotionManager::L2DMotionManager() = default;
 bool L2DMotionManager::reserveMotion(int priority) {
     if (priority < mReservePriority) return false;
@@ -11,17 +21,27 @@ bool L2DMotionManager::reserveMotion(int priority) {
     return true;
 }
 int L2DMotionManager::startMotion(AMotion* motion, bool autoPriority) {
-    float now = (float)UtSystem::getUserTimeMSec();
+    double now = UtSystem::getUserTimeMSec();
+    const bool isMainMotion = dynamic_cast<Live2DMotion*>(motion) != nullptr;
+    if (auto* liveMotion = dynamic_cast<Live2DMotion*>(motion)) {
+        liveMotion->mFinished = false;
+    }
+    float fadeInSec = motion->mFadeInSec;
+    float fadeOutSec = motion->mFadeOutSec;
+    if (isMainMotion) {
+        fadeInSec = mainMotionFadeSec(fadeInSec);
+        fadeOutSec = mainMotionFadeSec(fadeOutSec);
+    }
     // Fade out existing motions, matching Python v2: shorter end time wins
     for (auto& e : mMotions) {
         if (e.mFadeOut > 0) {
-            float newEnd = now + e.mFadeOut * 1000.0f;
+            double newEnd = now + static_cast<double>(e.mFadeOut) * 1000.0;
             if (e.mEndTimeMs < 0 || newEnd < e.mEndTimeMs)
                 e.mEndTimeMs = newEnd;
         }
     }
-    mMotions.push_back({motion, motion->mFadeInSec, motion->mFadeOutSec, false,
-                        now, now, -1.0f});
+    mMotions.push_back({motion, fadeInSec, fadeOutSec, false,
+                        now, now, -1.0});
     return (int)mMotions.size() - 1;
 }
 int L2DMotionManager::startMotionPrio(AMotion* motion, int priority) {
@@ -37,7 +57,7 @@ static float easeSine(float x) {
 }
 
 bool L2DMotionManager::updateParam(ALive2DModel* model) {
-    float now = (float)UtSystem::getUserTimeMSec();
+    double now = UtSystem::getUserTimeMSec();
     bool updated = false;
     for (size_t i = 0; i < mMotions.size(); ) {
         auto& e = mMotions[i];
@@ -49,17 +69,19 @@ bool L2DMotionManager::updateParam(ALive2DModel* model) {
                 e.mEndTimeMs = -1;
             e.mStarted = true;
         }
-        float elapsed = (now - e.mStartTimeMs) / 1000.0f;
+        float elapsed = static_cast<float>((now - e.mStartTimeMs) / 1000.0);
 
         // Fade-in weight
         float fadeIn = 1.0f;
         if (e.mFadeIn > 0 && e.mFadeInStartMs >= 0) {
-            fadeIn = easeSine((now - e.mFadeInStartMs) / (e.mFadeIn * 1000.0f));
+            fadeIn = easeSine(static_cast<float>(
+                (now - e.mFadeInStartMs) / (static_cast<double>(e.mFadeIn) * 1000.0)));
         }
         // Fade-out weight
         float fadeOut = 1.0f;
         if (e.mFadeOut > 0 && e.mEndTimeMs >= 0) {
-            float remaining = (e.mEndTimeMs - now) / (e.mFadeOut * 1000.0f);
+            float remaining = static_cast<float>(
+                (e.mEndTimeMs - now) / (static_cast<double>(e.mFadeOut) * 1000.0));
             if (remaining <= 0) {
                 e.mFinished = true;
                 fadeOut = 0;

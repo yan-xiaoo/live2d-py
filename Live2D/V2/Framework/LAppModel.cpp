@@ -19,6 +19,7 @@
 #include <stb_image.h>
 #include "Log.hpp"
 #include <fstream>
+#include <string>
 #include <vector>
 #include <sstream>
 #include <cmath>
@@ -33,6 +34,7 @@ static std::vector<uint8_t> readFile(const std::string& path) {
     std::ifstream f(fp, std::ios::binary | std::ios::ate);
     if (!f) return {};
     auto sz = f.tellg(); f.seekg(0);
+    if (sz <= 0) return {};
     std::vector<uint8_t> data((size_t)sz);
     f.read((char*)data.data(), sz);
     return data;
@@ -87,6 +89,7 @@ bool LAppModel::loadModelJson(const std::string& path) {
     auto mocData = readFile(mocPath);
     if (mocData.empty()) return false;
     loadModelData(mocData, 0);
+    if (!mLive2DModel) return false;
     mModelMatrix.mWidth = (float)mLive2DModel->getCanvasWidth();
     mModelMatrix.mHeight = (float)mLive2DModel->getCanvasHeight();
     Info("Load model: %s", mocPath.c_str());
@@ -355,6 +358,14 @@ void LAppModel::update() {
     }
     mLive2DModel->getModelContext()->saveParam();
 
+    // Check motion finish callback
+    if (mCallbacksPending && mMainMotionMgr->isFinished()) {
+        if (mOnFinishMotion) mOnFinishMotion(mCurrentGroup, mCurrentNo);
+        mOnFinishMotion = nullptr;
+        mOnStartMotion = nullptr;
+        mCallbacksPending = false;
+    }
+
     // Python suppresses eye-blink while a main motion is active
     if (!updated && mAutoBlink && mEyeBlink)
         mEyeBlink->updateParam(mLive2DModel);
@@ -381,14 +392,15 @@ void LAppModel::update() {
 
     // Auto-breath animation (wall clock time, match v2 Python periods)
     if (mAutoBreath) {
-        float t = (float)UtSystem::getUserTimeMSec() / 1000.0f;
-        addParam("PARAM_ANGLE_X", 15.0f * sinf(t / 6.5345f), 0.5f);
-        addParam("PARAM_ANGLE_Y", 8.0f * sinf(t / 3.5345f), 0.5f);
-        addParam("PARAM_ANGLE_Z", 10.0f * sinf(t / 5.5345f), 0.5f);
-        addParam("PARAM_BODY_ANGLE_X", 4.0f * sinf(t / 15.5345f), 0.5f);
+        constexpr double PI = 3.14159265358979323846;
+        double t = (UtSystem::getUserTimeMSec() / 1000.0) * 2.0 * PI;
+        addParam("PARAM_ANGLE_X", static_cast<float>(15.0 * sin(t / 6.5345)), 0.5f);
+        addParam("PARAM_ANGLE_Y", static_cast<float>(8.0 * sin(t / 3.5345)), 0.5f);
+        addParam("PARAM_ANGLE_Z", static_cast<float>(10.0 * sin(t / 5.5345)), 0.5f);
+        addParam("PARAM_BODY_ANGLE_X", static_cast<float>(4.0 * sin(t / 15.5345)), 0.5f);
         int breathIdx = mc->getParamIndex(&Id::getID("PARAM_BREATH"));
         if (breathIdx >= 0)
-            mc->setParamFloat(breathIdx, 0.5f + 0.5f * sinf(t / 3.2345f));
+            mc->setParamFloat(breathIdx, static_cast<float>(0.5 + 0.5 * sin(t / 3.2345)));
     }
 
     if (mPhysics) mPhysics->updateParam(mLive2DModel);
@@ -429,31 +441,56 @@ void LAppModel::setRandomExpression() {
         mExpressionMgr->startMotion(it->second, false);
     }
 }
-void LAppModel::startMotion(const std::string& group, int no, int priority) {
+void LAppModel::startMotion(const std::string& group, int no, int priority,
+                             StartCallback onStart, FinishCallback onFinish) {
+    mOnStartMotion = std::move(onStart);
+    mOnFinishMotion = std::move(onFinish);
     auto it = mMotions.find(group);
     if (it != mMotions.end() && !it->second.empty()) {
         if (no < 0 || no >= (int)it->second.size()) no = 0;
+        mCallbacksPending = true;
+        mCurrentGroup = group;
+        mCurrentNo = no;
+        if (mOnStartMotion) mOnStartMotion(group, no);
         Info("Start motion: group=%s no=%d priority=%d", group.c_str(), no, priority);
         mMainMotionMgr->startMotionPrio(it->second[no], priority);
+    } else {
+        if (mOnStartMotion) mOnStartMotion(group, no);
+        if (mOnFinishMotion) mOnFinishMotion(group, no);
+        mOnStartMotion = nullptr;
+        mOnFinishMotion = nullptr;
     }
 }
-void LAppModel::startRandomMotion(const std::string& group, int priority) {
+void LAppModel::startRandomMotion(const std::string& group, int priority,
+                                   StartCallback onStart, FinishCallback onFinish) {
     if (group.empty()) {
-        // Pick a random group from all available motions
         if (mMotions.empty()) return;
         int idx = rand() % (int)mMotions.size();
         auto it = mMotions.begin();
         std::advance(it, idx);
-        // Also pick a random motion within that group (match v2 Python)
         int count = (int)it->second.size();
         int no = (count > 1) ? (rand() % count) : 0;
-        startMotion(it->first, no, priority);
+        startMotion(it->first, no, priority, std::move(onStart), std::move(onFinish));
     } else {
         auto it = mMotions.find(group);
         int count = (it != mMotions.end()) ? (int)it->second.size() : 1;
         int no = (count > 1) ? (rand() % count) : 0;
-        startMotion(group, no, priority);
+        startMotion(group, no, priority, std::move(onStart), std::move(onFinish));
     }
+}
+void LAppModel::startLoadedMotion(int no, int priority,
+                                   StartCallback onStart, FinishCallback onFinish) {
+    startMotion("__live2d_py_external", no, priority, std::move(onStart), std::move(onFinish));
+}
+int LAppModel::loadMotion(const std::string& path, const std::string& group) {
+    auto data = readFile(path);
+    if (!data.empty()) {
+        auto* m = Live2DMotion::load(data);
+        auto& motion = mMotions[group];
+        motion.push_back(m);
+        return (int)motion.size() - 1;
+    }
+    return -1;
 }
 void LAppModel::clearMotions() { mClearFlag = true; }
 void LAppModel::resetExpression() { mExpressionMgr->stopAllMotions(); }

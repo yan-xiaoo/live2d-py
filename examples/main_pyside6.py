@@ -14,7 +14,7 @@ import live2d.v3 as live2d
 # import live2d.v2 as live2d
 
 
-def callback():
+def callback(group, no):
     print("motion end")
 
 

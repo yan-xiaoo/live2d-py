@@ -28,6 +28,9 @@ target_link_libraries(V3
   Framework
   ${OPENGL_LIBRARIES}
 )
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  target_link_libraries(V3 stdc++fs)
+endif()
 
 if(APPLE)
   target_link_libraries(V3

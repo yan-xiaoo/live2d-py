@@ -19,6 +19,6 @@ public:
 public:
     std::vector<PosePartGroup> mMGroups;
 private:
-    float mLastTime = 0; ALive2DModel* mLastModel = nullptr;
+    double mLastTime = 0; ALive2DModel* mLastModel = nullptr;
 };
 } // namespace live2d

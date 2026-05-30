@@ -2,6 +2,7 @@
 #include "Python.hpp"
 #include "PyLAppModel.hpp"
 #include "../../Live2D/V2/Graphics/DrawParamOpenGL.hpp"
+#include "../../Live2D/Common/Log.hpp"
 
 // glad GL loader
 extern "C" int gladLoadGL();
@@ -22,10 +23,24 @@ static PyObject* v2cpp_clearBuffer(PyObject*, PyObject* args) {
     live2d::DrawParamOpenGL::clearBuffer(r, g, b, a);
     Py_RETURN_NONE;
 }
-static PyObject* v2cpp_enableLog(PyObject*, PyObject* args) { int e; PyArg_ParseTuple(args,"p",&e); Py_RETURN_NONE; }
-static PyObject* v2cpp_isLogEnabled(PyObject*, PyObject*) { Py_RETURN_FALSE; }
-static PyObject* v2cpp_setLogLevel(PyObject*, PyObject* args) { int l; PyArg_ParseTuple(args,"i",&l); Py_RETURN_NONE; }
-static PyObject* v2cpp_getLogLevel(PyObject*, PyObject*) { return PyLong_FromLong(0); }
+static PyObject* v2cpp_enableLog(PyObject*, PyObject* args) {
+    int e;
+    if (!PyArg_ParseTuple(args, "p", &e)) return nullptr;
+    EnableLive2DLog(e != 0);
+    Py_RETURN_NONE;
+}
+static PyObject* v2cpp_isLogEnabled(PyObject*, PyObject*) {
+    return PyBool_FromLong(IsLive2DLogEnabled() ? 1 : 0);
+}
+static PyObject* v2cpp_setLogLevel(PyObject*, PyObject* args) {
+    int l;
+    if (!PyArg_ParseTuple(args, "i", &l)) return nullptr;
+    SetLive2DLogLevel(l);
+    Py_RETURN_NONE;
+}
+static PyObject* v2cpp_getLogLevel(PyObject*, PyObject*) {
+    return PyLong_FromLong(GetLive2DLogLevel());
+}
 
 static PyMethodDef v2cpp_methods[] = {
     {"init", v2cpp_init, METH_VARARGS, ""},
@@ -55,6 +70,6 @@ PyMODINIT_FUNC PyInit__v2cpp(void) {
     if (!t) { Py_DECREF(m); return nullptr; }
     PyModule_AddObject(m, "LAppModel", t);
 
-    printf("[live2d.v2cpp] C++ port, Python %s\n", PY_VERSION);
+    Info("[live2d.v2cpp] C++ port, Python %s", PY_VERSION);
     return m;
 }

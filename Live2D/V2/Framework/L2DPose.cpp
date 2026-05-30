@@ -90,8 +90,8 @@ void L2DPose::updateParam(ALive2DModel* model) {
     }
 
     mLastModel = model;
-    float now = (float)UtSystem::getUserTimeMSec();
-    float dt = (mLastTime > 0) ? (now - mLastTime) / 1000.0f : 0;
+    double now = UtSystem::getUserTimeMSec();
+    float dt = (mLastTime > 0) ? static_cast<float>((now - mLastTime) / 1000.0) : 0;
     if (dt < 0) dt = 0;
     mLastTime = now;
 

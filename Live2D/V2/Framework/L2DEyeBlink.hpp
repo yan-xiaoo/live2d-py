@@ -13,7 +13,7 @@ private:
     enum State { FIRST, INTERVAL, CLOSING, CLOSED, OPENING };
     State mState = FIRST;
     float mClosingMs = 150, mClosedMs = 80, mOpeningMs = 220;
-    float mCurrentTime = 0, mNextBlinkTime = 0, mStateStartTime = 0;
+    double mCurrentTime = 0, mNextBlinkTime = 0, mStateStartTime = 0;
     bool mCloseIfZero = true;
     std::string mEyeLId = "PARAM_EYE_L_OPEN", mEyeRId = "PARAM_EYE_R_OPEN";
 };

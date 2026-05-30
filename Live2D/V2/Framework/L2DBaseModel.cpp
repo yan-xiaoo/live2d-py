@@ -44,9 +44,6 @@ void L2DBaseModel::loadModelData(const std::vector<uint8_t>& data, int version) 
     mModelMatrix.setWidth(2);
     mModelMatrix.setCenterPosition(0, 0);
 }
-void L2DBaseModel::loadTexture(int no, const std::string& path) {
-    (void)no; (void)path; // stub
-}
 AMotion* L2DBaseModel::loadMotion(const std::string& name, const std::vector<uint8_t>& data) {
     auto* m = Live2DMotion::load(data);
     mMotions[name].push_back(m); return m;

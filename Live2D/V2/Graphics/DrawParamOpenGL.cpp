@@ -1,4 +1,5 @@
 #include "DrawParamOpenGL.hpp"
+#include "ClipContext.hpp"
 #include <cstdio>
 #include <cstring>
 #include <stdexcept>
@@ -264,11 +265,16 @@ void DrawParamOpenGL::drawTexture(int texNo, const std::array<float, 4>& screenC
     float a5 = mBaseBlue * opacity;
     float a7 = mBaseAlpha * opacity;
 
-    static int sDrawCallNo = 0;
-    sDrawCallNo++;
-    int callNo = sDrawCallNo;
-    const char* path = mClipMaskCtx ? "MASK" : mClipDrawCtx ? "CLIP" : "NORM";
-
+    auto channelColor = [](int channel, float& r, float& g, float& b, float& a) {
+        r = g = b = a = 0.0f;
+        switch (channel) {
+            case 0: a = 1.0f; break;
+            case 1: r = 1.0f; break;
+            case 2: g = 1.0f; break;
+            case 3: b = 1.0f; break;
+            default: break;
+        }
+    };
 
     if (mClipMaskCtx) {
         // Path 1: Mask RENDER — use clip's matrixForMask as u_mvpMatrix
@@ -277,12 +283,21 @@ void DrawParamOpenGL::drawTexture(int texNo, const std::array<float, 4>& screenC
         GLuint p = mShaderNormal;
         glUniformMatrix4fv(glGetUniformLocation(p, "u_mvpMatrix"), 1, GL_FALSE, mClipMatrix.data());
         glUniform1i(glGetUniformLocation(p, "u_maskFlag"), 1);
-        // u_baseColor = clip rect (full [-1,1] for full-FBO mask render)
-        glUniform4f(glGetUniformLocation(p, "u_baseColor"), -1.0f, -1.0f, 1.0f, 1.0f);
-        float chR=(mClipChannel==0)?1.0f:0,chG=(mClipChannel==1)?1.0f:0,chB=(mClipChannel==2)?1.0f:0,chA=(mClipChannel==3)?1.0f:0;
-        // Channel color: R=ch0, G=ch1, B=ch2, A=ch3
-        float cR=(mClipChannel==0)?1.0f:0, cG=(mClipChannel==1)?1.0f:0,
-              cB=(mClipChannel==2)?1.0f:0, cA=(mClipChannel==3)?1.0f:0;
+        float baseLeft = -1.0f;
+        float baseTop = -1.0f;
+        float baseRight = 1.0f;
+        float baseBottom = 1.0f;
+        auto* clip = static_cast<ClipContext*>(mClipMaskCtx);
+        if (clip) {
+            const auto& bounds = clip->mLayoutBounds;
+            baseLeft = bounds[0] * 2.0f - 1.0f;
+            baseTop = bounds[1] * 2.0f - 1.0f;
+            baseRight = (bounds[0] + bounds[2]) * 2.0f - 1.0f;
+            baseBottom = (bounds[1] + bounds[3]) * 2.0f - 1.0f;
+        }
+        glUniform4f(glGetUniformLocation(p, "u_baseColor"), baseLeft, baseTop, baseRight, baseBottom);
+        float cR, cG, cB, cA;
+        channelColor(mClipChannel, cR, cG, cB, cA);
         glUniform4f(glGetUniformLocation(p, "u_channelFlag"), cR, cG, cB, cA);
         glUniform4f(glGetUniformLocation(p, "u_screenColor"), 0,0,0,0);
         glUniform4f(glGetUniformLocation(p, "u_multiplyColor"), 1,1,1,0);
@@ -297,7 +312,8 @@ void DrawParamOpenGL::drawTexture(int texNo, const std::array<float, 4>& screenC
         glUniform4f(glGetUniformLocation(p, "u_baseColor"), a_w, a2, a5, a7);
         glUniform4f(glGetUniformLocation(p, "u_screenColor"), screenColor[0], screenColor[1], screenColor[2], screenColor[3]);
         glUniform4f(glGetUniformLocation(p, "u_multiplyColor"), multiplyColor[0], multiplyColor[1], multiplyColor[2], multiplyColor[3]);
-        float chR=(mClipChannel==0)?1.0f:0,chG=(mClipChannel==1)?1.0f:0,chB=(mClipChannel==2)?1.0f:0,chA=(mClipChannel==3)?1.0f:0;
+        float chR, chG, chB, chA;
+        channelColor(mClipChannel, chR, chG, chB, chA);
         glUniform4f(glGetUniformLocation(p, "u_channelFlag"), chR, chG, chB, chA);
         glActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_2D, getTexture(texNo));
         glUniform1i(glGetUniformLocation(p, "s_texture0"), 1);
@@ -364,17 +380,6 @@ void DrawParamOpenGL::drawTexture(int texNo, const std::array<float, 4>& screenC
     glBlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD);
     glBlendFuncSeparate(srcRGB, dstRGB, srcAlpha, dstAlpha);
 
-    // Debug: print blend function
-    auto blendName = [](GLenum e) -> const char* {
-        switch(e) {
-            case GL_ONE: return "ONE";
-            case GL_ZERO: return "ZERO";
-            case GL_DST_COLOR: return "DST_COLOR";
-            case GL_ONE_MINUS_SRC_ALPHA: return "ONE_MINUS_SRC_ALPHA";
-            case GL_ONE_MINUS_SRC_COLOR: return "ONE_MINUS_SRC_COLOR";
-            default: return "?";
-        }
-    };
     // Position VBO (location 0)
     if (!mPosVBO) glGenBuffers(1, &mPosVBO);
     glBindBuffer(GL_ARRAY_BUFFER, mPosVBO);

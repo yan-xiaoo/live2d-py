@@ -12,9 +12,9 @@ import resources
 import pygame
 from pygame.locals import *
 
-# import live2d.v3 as live2d
+import live2d.v3 as live2d
 # import live2d.v2 as live2d
-import live2d.v2cpp as live2d
+# import live2d.v2cpp as live2d
 
 if live2d.LIVE2D_VERSION == 3:
     from live2d.v3 import StandardParams
@@ -31,7 +31,7 @@ live2d.setLogLevel(live2d.Live2DLogLevels.LV_DEBUG)
 
 def main():
     pygame.init()
-    pygame.mixer.init()
+    # pygame.mixer.init()
     live2d.init()
 
     display = (500, 600)
@@ -90,7 +90,7 @@ def main():
         # log.Info("start lipSync")
         # wavHandler.Start(audioPath)
 
-    def on_finish_motion_callback():
+    def on_finish_motion_callback(group: str, no: int):
         log.Info("motion finished")
 
     # 获取全部可用参数
