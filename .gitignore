@@ -1,4 +1,10 @@
 build
+CMakeCache.txt
+Makefile
+cmake_install.cmake
+**/CMakeCache.txt
+**/Makefile
+**/cmake_install.cmake
 
 live2d-desktop
 config.v2.json
@@ -6,6 +12,7 @@ config.v3.json
 !glew/build
 
 *.zip
+*.whl
 
 glew/doc
 
@@ -22,6 +29,12 @@ Live2D/V2/Framework/
 **/*.wav
 
 **/*.egg-info
+
+*.a
+*.so
+*.pyd
+*.dylib
+*.pdb
 
 dist
 
@@ -67,6 +80,7 @@ Live2D/Core
 csmsdk_temp
 
 .cache
+.env
 
 Live2D/V3/Core/*
 Live2D/V3/Framework/*

@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -23,3 +23,7 @@ keywords = ["Live2D", "Cubism Live2D", "Cubism SDK", "Cubism SDK for Python"]
 Homepage = "https://github.com/Arkueid/live2d-py"
 Documentation = "https://Arkueid.github.io/live2d-py-docs/"
 Repository = "https://github.com/Arkueid/live2d-py"
+
+[tool.live2d-py.macos]
+deployment-target = "14.0"
+architectures = ["arm64", "x86_64"]

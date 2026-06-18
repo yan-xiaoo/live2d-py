@@ -31,6 +31,99 @@ import re
 import subprocess
 import sys
 
+
+DEFAULT_MACOS_DEPLOYMENT_TARGET = "14.0"
+DEFAULT_MACOS_ARCHITECTURES = ("arm64", "x86_64")
+
+
+def read_macos_config() -> dict[str, object]:
+    """读取 pyproject.toml 中的 macOS 构建配置。"""
+    pyproject_path = os.path.join(os.path.dirname(__file__), "pyproject.toml")
+    try:
+        if sys.version_info >= (3, 11):
+            import tomllib
+
+            with open(pyproject_path, "rb") as f:
+                pyproject = tomllib.load(f)
+            return (
+                pyproject.get("tool", {})
+                .get("live2d-py", {})
+                .get("macos", {})
+            )
+    except Exception:
+        pass
+
+    config: dict[str, object] = {}
+    try:
+        section_found = False
+        with open(pyproject_path, "r", encoding="utf-8") as f:
+            for line in f:
+                stripped = line.strip()
+                if stripped.startswith("[") and stripped.endswith("]"):
+                    section_found = stripped == "[tool.live2d-py.macos]"
+                    continue
+                if section_found and stripped.startswith("deployment-target"):
+                    config["deployment-target"] = (
+                        stripped.split("=", 1)[1].strip().strip('"').strip("'")
+                    )
+                if section_found and stripped.startswith("architectures"):
+                    values = stripped.split("=", 1)[1]
+                    config["architectures"] = tuple(
+                        item.strip().strip("[]").strip().strip('"').strip("'")
+                        for item in values.split(",")
+                        if item.strip().strip("[]").strip()
+                    )
+    except Exception:
+        pass
+
+    return config
+
+
+def read_macos_deployment_target() -> str:
+    """读取 macOS 最低部署版本。"""
+    configured = read_macos_config().get("deployment-target")
+    if configured:
+        return str(configured)
+    return DEFAULT_MACOS_DEPLOYMENT_TARGET
+
+
+def read_macos_architectures() -> tuple[str, ...]:
+    """读取 macOS wheel 需要包含的 CPU 架构。"""
+    configured = read_macos_config().get("architectures")
+    if isinstance(configured, str):
+        return tuple(arch.strip() for arch in configured.split(";") if arch.strip())
+    if isinstance(configured, (list, tuple)):
+        return tuple(str(arch) for arch in configured if str(arch))
+    return DEFAULT_MACOS_ARCHITECTURES
+
+
+MACOS_DEPLOYMENT_TARGET = read_macos_deployment_target()
+MACOS_ARCHITECTURES = read_macos_architectures()
+
+if sys.platform == "darwin":
+    os.environ.setdefault("MACOSX_DEPLOYMENT_TARGET", MACOS_DEPLOYMENT_TARGET)
+    os.environ.setdefault("CMAKE_OSX_ARCHITECTURES", ";".join(MACOS_ARCHITECTURES))
+
+
+def macos_wheel_plat_name() -> str:
+    """生成与当前 macOS 构建架构匹配的 wheel 平台标签。"""
+    architectures = tuple(
+        arch.strip()
+        for arch in os.environ.get(
+            "CMAKE_OSX_ARCHITECTURES", ";".join(MACOS_ARCHITECTURES)
+        ).split(";")
+        if arch.strip()
+    )
+    platform_arch = (
+        "universal2"
+        if set(architectures) == {"arm64", "x86_64"}
+        else architectures[0] if architectures else platform.machine()
+    )
+    return "macosx-{}-{}".format(
+        os.environ.get("MACOSX_DEPLOYMENT_TARGET", MACOS_DEPLOYMENT_TARGET),
+        platform_arch,
+    )
+
 from setuptools import setup, find_packages, Extension, Command
 from setuptools.command.build_ext import build_ext
 from setuptools.command.install import install
@@ -274,6 +367,15 @@ def run_cmake():
     else:
         cmake_args += ["-DCMAKE_BUILD_TYPE=" + "Release"]
         build_args += ["--", "-j2"]
+        if platform.system() == "Darwin":
+            cmake_args += [
+                "-DCMAKE_OSX_DEPLOYMENT_TARGET="
+                + os.environ.get("MACOSX_DEPLOYMENT_TARGET", MACOS_DEPLOYMENT_TARGET)
+            ]
+            cmake_args += [
+                "-DCMAKE_OSX_ARCHITECTURES="
+                + os.environ.get("CMAKE_OSX_ARCHITECTURES", ";".join(MACOS_ARCHITECTURES))
+            ]
     source_folder = os.path.dirname(os.path.abspath(__file__))
     build_folder = os.path.join(source_folder, "build")
 
@@ -315,6 +417,16 @@ class CMakeBuild(build_ext):
 
 
 class BuildWheel(bdist_wheel):
+    def initialize_options(self):
+        bdist_wheel.initialize_options(self)
+        if sys.platform == "darwin":
+            self.plat_name = macos_wheel_plat_name()
+
+    def finalize_options(self):
+        if sys.platform == "darwin" and not self.plat_name:
+            self.plat_name = macos_wheel_plat_name()
+        bdist_wheel.finalize_options(self)
+
     def run(self):
         run_cmake()
         bdist_wheel.run(self)
