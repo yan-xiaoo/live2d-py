@@ -4,7 +4,7 @@ set(Python3_FIND_REGISTRY "NEVER")
 set(Python3_FIND_VIRTUALENV "FIRST")
 set(Python3_FIND_STRATEGY "LOCATION")
 
-set(LIVE2D_PY_LIMITED_API "0x03020000" CACHE STRING
+set(LIVE2D_PY_LIMITED_API "0x03080000" CACHE STRING
     "Py_LIMITED_API value used for live2d Python wrappers")
 
 if(DEFINED PYTHON_INSTALLATION_PATH AND NOT "${PYTHON_INSTALLATION_PATH}" STREQUAL "")
@@ -14,8 +14,8 @@ endif()
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter Development.SABIModule)
 
-if(Python3_VERSION VERSION_LESS "3.2")
-    message(FATAL_ERROR "live2d Python wrappers require Python 3.2 or newer for the stable ABI")
+if(Python3_VERSION VERSION_LESS "3.8")
+    message(FATAL_ERROR "live2d Python wrappers require Python 3.8 or newer")
 endif()
 
 message(STATUS "Python3 executable: ${Python3_EXECUTABLE}")

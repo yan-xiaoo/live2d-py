@@ -1,6 +1,6 @@
 #pragma once
 #ifndef Py_LIMITED_API
-#define Py_LIMITED_API 0x03020000
+#define Py_LIMITED_API 0x03080000
 #endif
 #include <Python.h>
 

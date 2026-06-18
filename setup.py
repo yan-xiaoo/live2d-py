@@ -34,8 +34,8 @@ import sys
 
 DEFAULT_MACOS_DEPLOYMENT_TARGET = "14.0"
 DEFAULT_MACOS_ARCHITECTURES = ("arm64", "x86_64")
-PY_LIMITED_API = "0x03020000"
-PY_LIMITED_API_TAG = "cp32"
+PY_LIMITED_API = "0x03080000"
+PY_LIMITED_API_TAG = "cp38"
 
 
 def read_macos_config() -> dict[str, object]:
@@ -154,7 +154,7 @@ LONG_DESCRIPTION = (
 AUTHOR = "Arkueid"
 AUTHOR_EMAIL = "thetardis@qq.com"
 URL = "https://github.com/Arkueid/live2d-py"
-REQUIRES_PYTHON = ">=3.2"
+REQUIRES_PYTHON = ">=3.8"
 INSTALL_REQUIRES = ["numpy", "pyopengl", "pillow"]
 
 
