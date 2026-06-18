@@ -7,7 +7,8 @@ add_library(${V2_TARGET} SHARED
 )
 
 target_include_directories(${V2_TARGET} PRIVATE ${CMAKE_SOURCE_DIR}/Live2D/Glad/include)
-target_link_libraries(${V2_TARGET} PRIVATE V2 Python3::SABIModule)
+target_link_libraries(${V2_TARGET} PRIVATE V2)
+target_link_limited_python(${V2_TARGET})
 
 set_wrapper_output(${V2_TARGET} "_v2cpp")
 

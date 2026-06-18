@@ -34,6 +34,8 @@ import sys
 
 DEFAULT_MACOS_DEPLOYMENT_TARGET = "14.0"
 DEFAULT_MACOS_ARCHITECTURES = ("arm64", "x86_64")
+PY_LIMITED_API = "0x03020000"
+PY_LIMITED_API_TAG = "cp32"
 
 
 def read_macos_config() -> dict[str, object]:
@@ -387,6 +389,7 @@ def run_cmake():
     sys.stdout.flush()
 
     cmake_args += ["-DPython3_EXECUTABLE=" + python_executable]
+    cmake_args += ["-DLIVE2D_PY_LIMITED_API=" + PY_LIMITED_API]
     cmake_args += ["-UVIEWER"]
 
     cmake_setup = ["cmake", "-S", source_folder, "-B", build_folder] + cmake_args
@@ -423,6 +426,8 @@ class BuildWheel(bdist_wheel):
             self.plat_name = macos_wheel_plat_name()
 
     def finalize_options(self):
+        if not self.py_limited_api:
+            self.py_limited_api = PY_LIMITED_API_TAG
         if sys.platform == "darwin" and not self.plat_name:
             self.plat_name = macos_wheel_plat_name()
         bdist_wheel.finalize_options(self)
