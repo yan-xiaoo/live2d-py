@@ -391,13 +391,15 @@ void LAppModel::update() {
     addParam("PARAM_EYE_BALL_Y", mDragY, 1);
 
     // Auto-breath animation (wall clock time, match v2 Python periods)
-    if (mAutoBreath) {
+    if (mAutoBreathMode != AutoBreathMode::Off) {
         constexpr double PI = 3.14159265358979323846;
         double t = (UtSystem::getUserTimeMSec() / 1000.0) * 2.0 * PI;
-        addParam("PARAM_ANGLE_X", static_cast<float>(15.0 * sin(t / 6.5345)), 0.5f);
-        addParam("PARAM_ANGLE_Y", static_cast<float>(8.0 * sin(t / 3.5345)), 0.5f);
-        addParam("PARAM_ANGLE_Z", static_cast<float>(10.0 * sin(t / 5.5345)), 0.5f);
-        addParam("PARAM_BODY_ANGLE_X", static_cast<float>(4.0 * sin(t / 15.5345)), 0.5f);
+        if (mAutoBreathMode == AutoBreathMode::Full) {
+            addParam("PARAM_ANGLE_X", static_cast<float>(15.0 * sin(t / 6.5345)), 0.5f);
+            addParam("PARAM_ANGLE_Y", static_cast<float>(8.0 * sin(t / 3.5345)), 0.5f);
+            addParam("PARAM_ANGLE_Z", static_cast<float>(10.0 * sin(t / 5.5345)), 0.5f);
+            addParam("PARAM_BODY_ANGLE_X", static_cast<float>(4.0 * sin(t / 15.5345)), 0.5f);
+        }
         int breathIdx = mc->getParamIndex(&Id::getID("PARAM_BREATH"));
         if (breathIdx >= 0)
             mc->setParamFloat(breathIdx, static_cast<float>(0.5 + 0.5 * sin(t / 3.2345)));

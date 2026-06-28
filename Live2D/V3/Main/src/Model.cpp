@@ -66,7 +66,8 @@ Model::Model()
     , _parameterValues(nullptr)
     , _tmpOrderedDrawIndice(nullptr)
     , autoBlink(true)
-    , autoBreath(true)
+    , _autoBreathMode(AutoBreathMode::Full)
+    , _breathParameterMode(AutoBreathMode::Full)
 {
     _mocConsistency = true;
 
@@ -160,7 +161,7 @@ void Model::Update(float deltaSecs)
     _model->AddParameterValue(_ParamEyeBallXi, _dragX);
     _model->AddParameterValue(_ParamEyeBallYi, _dragY);
 
-    if (_breath != NULL && autoBreath) {
+    if (_breath != NULL && _autoBreathMode != AutoBreathMode::Off) {
         _breath->UpdateParameters(_model, deltaSecs);
     }
 
@@ -241,21 +242,7 @@ void Model::SetupModel()
     // Breath
     {
         _breath = CubismBreath::Create();
-
-        csmVector<CubismBreath::BreathParameterData> breathParameters;
-
-        breathParameters.PushBack(
-            CubismBreath::BreathParameterData(_idParamAngleX, 0.0f, 15.0f, 6.5345f, 0.5f));
-        breathParameters.PushBack(
-            CubismBreath::BreathParameterData(_idParamAngleY, 0.0f, 8.0f, 3.5345f, 0.5f));
-        breathParameters.PushBack(
-            CubismBreath::BreathParameterData(_idParamAngleZ, 0.0f, 10.0f, 5.5345f, 0.5f));
-        breathParameters.PushBack(
-            CubismBreath::BreathParameterData(_idParamBodyAngleX, 0.0f, 4.0f, 15.5345f, 0.5f));
-        breathParameters.PushBack(CubismBreath::BreathParameterData(
-            CubismFramework::GetIdManager()->GetId(ParamBreath), 0.5f, 0.5f, 3.2345f, 0.5f));
-
-        _breath->SetParameters(breathParameters);
+        ApplyBreathParameters();
     }
 
     // UserData
@@ -1282,9 +1269,74 @@ void Model::SetAutoBlink(bool on)
     autoBlink = on;
 }
 
+void Model::UseFullBreathParameters()
+{
+    if (_breath == nullptr) {
+        return;
+    }
+
+    csmVector<CubismBreath::BreathParameterData> breathParameters;
+
+    breathParameters.PushBack(
+        CubismBreath::BreathParameterData(_idParamAngleX, 0.0f, 15.0f, 6.5345f, 0.5f));
+    breathParameters.PushBack(
+        CubismBreath::BreathParameterData(_idParamAngleY, 0.0f, 8.0f, 3.5345f, 0.5f));
+    breathParameters.PushBack(
+        CubismBreath::BreathParameterData(_idParamAngleZ, 0.0f, 10.0f, 5.5345f, 0.5f));
+    breathParameters.PushBack(
+        CubismBreath::BreathParameterData(_idParamBodyAngleX, 0.0f, 4.0f, 15.5345f, 0.5f));
+    breathParameters.PushBack(CubismBreath::BreathParameterData(
+        CubismFramework::GetIdManager()->GetId(ParamBreath), 0.5f, 0.5f, 3.2345f, 0.5f));
+
+    _breath->SetParameters(breathParameters);
+}
+
+void Model::UseParamBreathOnlyParameters()
+{
+    if (_breath == nullptr) {
+        return;
+    }
+
+    csmVector<CubismBreath::BreathParameterData> breathParameters;
+
+    breathParameters.PushBack(CubismBreath::BreathParameterData(
+        CubismFramework::GetIdManager()->GetId(ParamBreath), 0.5f, 0.5f, 3.2345f, 0.5f));
+
+    _breath->SetParameters(breathParameters);
+}
+
+void Model::ApplyBreathParameters()
+{
+    if (_breathParameterMode == AutoBreathMode::ParamBreathOnly) {
+        UseParamBreathOnlyParameters();
+        return;
+    }
+
+    UseFullBreathParameters();
+}
+
 void Model::SetAutoBreath(bool on)
 {
-    autoBreath = on;
+    if (on) {
+        _autoBreathMode = AutoBreathMode::Full;
+        _breathParameterMode = AutoBreathMode::Full;
+        ApplyBreathParameters();
+        return;
+    }
+
+    _autoBreathMode = AutoBreathMode::Off;
+}
+
+void Model::SetAutoBreathParameterOnly(bool on)
+{
+    if (on) {
+        _autoBreathMode = AutoBreathMode::ParamBreathOnly;
+        _breathParameterMode = AutoBreathMode::ParamBreathOnly;
+        ApplyBreathParameters();
+        return;
+    }
+
+    _autoBreathMode = AutoBreathMode::Off;
 }
 
 bool Model::HasMocConsistencyFromFile(const char *mocFileName)

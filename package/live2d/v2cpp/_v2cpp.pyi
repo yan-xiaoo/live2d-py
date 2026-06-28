@@ -35,6 +35,9 @@ class LAppModel:
     def SetAutoBreathEnable(self, enable: bool) -> None:
         """Enable/disable automatic breath animation."""
         ...
+    def SetAutoBreathParameterOnlyEnable(self, enable: bool) -> None:
+        """Enable/disable automatic breath animation for only the breath parameter."""
+        ...
     def SetAutoBlinkEnable(self, enable: bool) -> None:
         """Enable/disable automatic eye blink."""
         ...

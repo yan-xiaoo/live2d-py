@@ -275,6 +275,10 @@ class LAppModel:
     def SetAutoBreathEnable(self, enable: bool):
         self._model.SetAutoBreath(enable)
 
+    def SetAutoBreathParameterOnlyEnable(self, enable: bool) -> None:
+        """设置是否只自动驱动呼吸参数。"""
+        self._model.SetAutoBreathParameterOnly(enable)
+
     def SetAutoBlinkEnable(self, enable: bool):
         self._model.SetAutoBlink(enable)
 

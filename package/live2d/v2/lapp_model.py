@@ -15,6 +15,9 @@ if TYPE_CHECKING:
 
 
 class LAppModel(L2DBaseModel):
+    _AUTO_BREATH_OFF = "off"
+    _AUTO_BREATH_FULL = "full"
+    _AUTO_BREATH_PARAM_ONLY = "param_only"
 
     def __init__(self):
         super().__init__()
@@ -23,7 +26,7 @@ class LAppModel(L2DBaseModel):
         self.matrixManager = MatrixManager()
         self.dragMgr = L2DTargetPoint()
         self.dragMgr.setPoint(0.0, 0.0)
-        self.autoBreath = True
+        self._autoBreathMode = self._AUTO_BREATH_FULL
         self.autoBlink = True
         self.curMotionGroup = ""
         self.curMotionNo = -1
@@ -138,8 +141,22 @@ class LAppModel(L2DBaseModel):
         if idx < len(mdc.savedParamValues):
             mdc.savedParamValues[idx] = mdc.savedParamValues[idx] * (1 - weight) + value * weight
 
-    def SetAutoBreathEnable(self, enable: bool):
-        self.autoBreath = enable
+    @property
+    def autoBreath(self) -> bool:
+        """获取是否启用完整自动呼吸。"""
+        return self._autoBreathMode == self._AUTO_BREATH_FULL
+
+    @autoBreath.setter
+    def autoBreath(self, enable: bool) -> None:
+        """设置是否启用完整自动呼吸。"""
+        self.SetAutoBreathEnable(enable)
+
+    def SetAutoBreathEnable(self, enable: bool) -> None:
+        self._autoBreathMode = self._AUTO_BREATH_FULL if enable else self._AUTO_BREATH_OFF
+
+    def SetAutoBreathParameterOnlyEnable(self, enable: bool) -> None:
+        """设置是否只自动驱动呼吸参数。"""
+        self._autoBreathMode = self._AUTO_BREATH_PARAM_ONLY if enable else self._AUTO_BREATH_OFF
 
     def SetAutoBlinkEnable(self, enable: bool):
         self.autoBlink = enable
@@ -211,11 +228,12 @@ class LAppModel(L2DBaseModel):
         self.live2DModel.addToParamFloat("PARAM_EYE_BALL_X", self.dragX, 1)
         self.live2DModel.addToParamFloat("PARAM_EYE_BALL_Y", self.dragY, 1)
 
-        if self.autoBreath:
-            self.live2DModel.addToParamFloat("PARAM_ANGLE_X", float((15 * math.sin(t / 6.5345))), 0.5)
-            self.live2DModel.addToParamFloat("PARAM_ANGLE_Y", float((8 * math.sin(t / 3.5345))), 0.5)
-            self.live2DModel.addToParamFloat("PARAM_ANGLE_Z", float((10 * math.sin(t / 5.5345))), 0.5)
-            self.live2DModel.addToParamFloat("PARAM_BODY_ANGLE_X", float((4 * math.sin(t / 15.5345))), 0.5)
+        if self._autoBreathMode != self._AUTO_BREATH_OFF:
+            if self._autoBreathMode == self._AUTO_BREATH_FULL:
+                self.live2DModel.addToParamFloat("PARAM_ANGLE_X", float((15 * math.sin(t / 6.5345))), 0.5)
+                self.live2DModel.addToParamFloat("PARAM_ANGLE_Y", float((8 * math.sin(t / 3.5345))), 0.5)
+                self.live2DModel.addToParamFloat("PARAM_ANGLE_Z", float((10 * math.sin(t / 5.5345))), 0.5)
+                self.live2DModel.addToParamFloat("PARAM_BODY_ANGLE_X", float((4 * math.sin(t / 15.5345))), 0.5)
             self.live2DModel.setParamFloat("PARAM_BREATH", float((0.5 + 0.5 * math.sin(t / 3.2345))), 1)
 
         if self.physics is not None:

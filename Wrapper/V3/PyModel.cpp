@@ -850,6 +850,20 @@ static PyObject* PyModel_SetAutoBreath(PyModelObject* self, PyObject* args, PyOb
 	Py_RETURN_NONE;
 }
 
+static PyObject* PyModel_SetAutoBreathParameterOnly(PyModelObject* self, PyObject* args, PyObject* kwargs)
+{
+	bool on;
+	if (!PyArg_ParseTuple(args, "b", &on))
+	{
+		PyErr_SetString(PyExc_TypeError, "arguments must be (bool)");
+		return NULL;
+	}
+
+	self->model->SetAutoBreathParameterOnly(on);
+
+	Py_RETURN_NONE;
+}
+
 static PyObject* PyModel_SetAutoBlink(PyModelObject* self, PyObject* args, PyObject* kwargs)
 {
 	bool on;
@@ -984,6 +998,7 @@ static PyMethodDef PyModel_Methods[] = {
     {"GetPixelsPerUnit", (PyCFunction)PyModel_GetPixelsPerUnit, METH_VARARGS, ""},
 
     {"SetAutoBreath", (PyCFunction)PyModel_SetAutoBreath, METH_VARARGS, ""},
+    {"SetAutoBreathParameterOnly", (PyCFunction)PyModel_SetAutoBreathParameterOnly, METH_VARARGS, ""},
     {"SetAutoBlink", (PyCFunction)PyModel_SetAutoBlink, METH_VARARGS, ""},
 
     {"HasMocConsistencyFromFile", (PyCFunction)PyModel_HasMocConsistencyFromFile, METH_VARARGS, ""},

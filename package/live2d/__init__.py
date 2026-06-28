@@ -1,3 +1,3 @@
-__version__ = "0.7.0.4+d_sakiko.1"
+__version__ = "0.7.0.4+d_sakiko.2"
 
 print(f"[live2d] third-party wrapper ({__version__}), not affiliated with Live2D Inc.")

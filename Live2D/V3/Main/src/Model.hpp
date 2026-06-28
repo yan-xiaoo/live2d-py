@@ -218,9 +218,17 @@ public:
 
     void SetAutoBreath(bool on);
 
+    void SetAutoBreathParameterOnly(bool on);
+
     bool HasMocConsistencyFromFile(const char *mocFileName);
 
 private:
+    enum class AutoBreathMode {
+        Off,
+        Full,
+        ParamBreathOnly,
+    };
+
     void ReleaseMotions();
 
     void ReleaseExpressions();
@@ -232,6 +240,12 @@ private:
     void PreloadMotionGroup(const csmChar *group);
 
     void SetupModel();
+
+    void UseFullBreathParameters();
+
+    void UseParamBreathOnlyParameters();
+
+    void ApplyBreathParameters();
 
     bool IsHit(CubismIdHandle drawableId, csmFloat32 pointX, csmFloat32 pointY) override;
 
@@ -277,6 +291,7 @@ private:
 
     std::vector<float> _savedParameterValues;
 
-    bool autoBreath;
+    AutoBreathMode _autoBreathMode;
+    AutoBreathMode _breathParameterMode;
     bool autoBlink;
 };

@@ -8,6 +8,12 @@
 namespace live2d {
 class LAppModel : public L2DBaseModel {
 public:
+    enum class AutoBreathMode {
+        Off,
+        Full,
+        ParamBreathOnly,
+    };
+
     using StartCallback = std::function<void(const std::string&, int)>;
     using FinishCallback = std::function<void(const std::string&, int)>;
 
@@ -22,7 +28,9 @@ public:
     void setScale(float s);
     void setParameterValue(const std::string& id, float val, float weight = 1.0f);
     void addParameterValue(const std::string& id, float val, float weight = 1.0f);
-    void setAutoBreathEnable(bool v) { mAutoBreath = v; }
+    void setAutoBreathEnable(bool v) { mAutoBreathMode = v ? AutoBreathMode::Full : AutoBreathMode::Off; }
+    void setAutoBreathParameterOnlyEnable(bool v) { mAutoBreathMode = v ? AutoBreathMode::ParamBreathOnly : AutoBreathMode::Off; }
+    bool isAutoBreathEnabled() const { return mAutoBreathMode == AutoBreathMode::Full; }
     void setAutoBlinkEnable(bool v) { mAutoBlink = v; }
     int getParameterCount() const;
     int getPartCount() const;
@@ -61,7 +69,8 @@ public:
     void setTexture(int no, int texId);
     L2DTargetPoint mDragMgr;
     MatrixManager mMatrixManager;
-    bool mAutoBreath = true, mAutoBlink = true;
+    AutoBreathMode mAutoBreathMode = AutoBreathMode::Full;
+    bool mAutoBlink = true;
     bool mClearFlag = false;
     std::string mModelHomeDir;
 private:

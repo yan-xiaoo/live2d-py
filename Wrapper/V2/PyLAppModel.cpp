@@ -152,6 +152,12 @@ static PyObject* PyLAppModel_SetAutoBreathEnable(PyLAppModelObject* self, PyObje
     self->model->setAutoBreathEnable(v != 0); Py_RETURN_NONE;
 }
 
+static PyObject* PyLAppModel_SetAutoBreathParameterOnlyEnable(PyLAppModelObject* self, PyObject* args) {
+    int v;
+    if (!PyArg_ParseTuple(args, "p", &v)) return nullptr;
+    self->model->setAutoBreathParameterOnlyEnable(v != 0); Py_RETURN_NONE;
+}
+
 static PyObject* PyLAppModel_SetAutoBlinkEnable(PyLAppModelObject* self, PyObject* args) {
     int v;
     if (!PyArg_ParseTuple(args, "p", &v)) return nullptr;
@@ -421,7 +427,7 @@ static PyObject* PyLAppModel_GetCanvasSizePixel(PyLAppModelObject* self, PyObjec
 
 // --- autoBreath property ---
 static PyObject* PyLAppModel_getAutoBreath(PyLAppModelObject* self, void*) {
-    return PyBool_FromLong(self->model->mAutoBreath ? 1 : 0);
+    return PyBool_FromLong(self->model->isAutoBreathEnabled() ? 1 : 0);
 }
 static int PyLAppModel_setAutoBreath(PyLAppModelObject* self, PyObject* value, void*) {
     if (!value) { PyErr_SetString(PyExc_TypeError, "Cannot delete attribute"); return -1; }
@@ -459,6 +465,7 @@ PyMethodDef PyLAppModel_methods[] = {
     {"SetParameterValue", (PyCFunction)PyLAppModel_SetParameterValue, METH_VARARGS, ""},
     {"AddParameterValue", (PyCFunction)PyLAppModel_AddParameterValue, METH_VARARGS, ""},
     {"SetAutoBreathEnable", (PyCFunction)PyLAppModel_SetAutoBreathEnable, METH_VARARGS, ""},
+    {"SetAutoBreathParameterOnlyEnable", (PyCFunction)PyLAppModel_SetAutoBreathParameterOnlyEnable, METH_VARARGS, ""},
     {"SetAutoBlinkEnable", (PyCFunction)PyLAppModel_SetAutoBlinkEnable, METH_VARARGS, ""},
     {"GetParameterCount", (PyCFunction)PyLAppModel_GetParameterCount, METH_NOARGS, ""},
     {"GetPartCount", (PyCFunction)PyLAppModel_GetPartCount, METH_NOARGS, ""},

@@ -703,6 +703,14 @@ class Model:
         """
         ...
 
+    def SetAutoBreathParameterOnly(self, on: bool) -> None:
+        """
+        Set auto breath to only drive the breath parameter
+        
+        :param on: Whether to enable parameter-only auto breath
+        """
+        ...
+
     def SetAutoBlink(self, on: bool) -> None:
         """
         Set auto blink feature toggle
