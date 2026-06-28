@@ -33,13 +33,12 @@ jobs:
 
             export CC=/usr/bin/gcc CXX=/usr/bin/g++
 
-            for ver in 10 11 12 13 14; do
-              PYBIN="/opt/python/cp3${ver}-cp3${ver}/bin"
-              [ -x "$PYBIN/python" ] || continue
-              echo "=== Building with $PYBIN/python ==="
-              "$PYBIN/pip" install "setuptools<82" wheel
-              "$PYBIN/python" setup.py bdist_wheel
-            done
+            # setup.py builds a CPython limited-API wheel tagged cp38-abi3, so
+            # one build per architecture is enough for all supported versions.
+            PYBIN="/opt/python/cp310-cp310/bin"
+            echo "=== Building abi3 wheel with $PYBIN/python ==="
+            "$PYBIN/pip" install "setuptools<82" wheel
+            "$PYBIN/python" setup.py bdist_wheel
 
             for whl in dist/*.whl; do
               auditwheel repair "$whl" -w dist/ || true

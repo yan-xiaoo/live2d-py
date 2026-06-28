@@ -17,7 +17,9 @@ jobs:
 
     strategy:
       matrix:
-        python-version: ['3.9', '3.10.0', '3.11.0', '3.12.0', '3.13', '3.14' ]
+        # setup.py builds a CPython limited-API wheel tagged cp38-abi3, so
+        # one build per platform is enough for all supported Python versions.
+        python-version: ['3.11.0']
         architecture: [ 'x64' ]
       fail-fast: false
 
@@ -37,11 +39,10 @@ jobs:
 
       - name: Build a binary wheel
         run: |
-          python setup.py build_ext
           python setup.py bdist_wheel
 
       - name: Upload screenshots
-        if: ${{ matrix.python-version == '3.13' }}
+        if: ${{ matrix.python-version == '3.11.0' }}
         uses: actions/upload-artifact@v4
         with:
           name: screenshots-windows
