@@ -350,12 +350,12 @@ static PyObject* PyLAppModel_ResetPose(PyLAppModelObject* self, PyObject*) {
 static PyObject* PyLAppModel_ResetExpression(PyLAppModelObject* self, PyObject*) {
     self->model->resetExpression(); Py_RETURN_NONE;
 }
-// Global reference to Parameter class (imported from live2d.v2.params)
+// Use the v2cpp Parameter class without importing the pure-Python v2 engine.
 static PyObject* sParamClass = nullptr;
 
 static void ensureParamClass() {
     if (!sParamClass) {
-        auto* mod = PyImport_ImportModule("live2d.v2.params");
+        auto* mod = PyImport_ImportModule("live2d.v2cpp");
         if (mod) {
             sParamClass = PyObject_GetAttrString(mod, "Parameter");
             Py_DECREF(mod);
@@ -367,7 +367,7 @@ static PyObject* PyLAppModel_GetParameter(PyLAppModelObject* self, PyObject* arg
     int index;
     if (!PyArg_ParseTuple(args, "i", &index)) return nullptr;
     ensureParamClass();
-    if (!sParamClass) Py_RETURN_NONE;
+    if (!sParamClass) return nullptr;
     PyObject* param = PyObject_CallObject(sParamClass, nullptr);
     if (!param) return nullptr;
     PyObject_SetAttrString(param, "id", PyUnicode_FromString(

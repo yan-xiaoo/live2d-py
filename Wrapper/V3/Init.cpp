@@ -175,7 +175,5 @@ PyMODINIT_FUNC PyInit__v3cpp(void)
     SetConsoleOutputCP(65001);
 #endif
 
-    printf("[live2d.v3] Cubism Native, Python %s\n", PY_VERSION);
-    printf("[live2d.v3] official: https://www.live2d.com/sdk/download/native/\n");
     return m;
 }

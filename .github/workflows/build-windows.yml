@@ -41,6 +41,20 @@ jobs:
         run: |
           python setup.py bdist_wheel
 
+      - name: Set up Python 3.9 for wheel compatibility tests
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+          architecture: ${{ matrix.architecture }}
+
+      - name: Test the built wheel on Python 3.9
+        shell: pwsh
+        run: |
+          $wheel = Get-ChildItem dist/*.whl | Select-Object -First 1
+          python -m pip install $wheel.FullName
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -I -m unittest discover -s tests -v
+
       - name: Upload screenshots
         if: ${{ matrix.python-version == '3.11.0' }}
         uses: actions/upload-artifact@v4

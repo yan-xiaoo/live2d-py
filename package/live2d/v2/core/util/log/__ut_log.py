@@ -14,18 +14,17 @@ def isLogEnabled() -> bool:
     return __enable
 
 
-def setLogLevel(level: int):
+def setLogLevel(level: int) -> None:
     global __logLevel
     __logLevel = level
-    match __logLevel:
-        case 0:
-            Debug("[Log] Level=DEBUG")
-        case 1:
-            Info("[Log] Level=INFO")
-        case 2:
-            Warn("[Log] Level=WARN")
-        case 3:
-            Error("[Log] Level=ERROR")    
+    if __logLevel == 0:
+        Debug("[Log] Level=DEBUG")
+    elif __logLevel == 1:
+        Info("[Log] Level=INFO")
+    elif __logLevel == 2:
+        Warn("[Log] Level=WARN")
+    elif __logLevel == 3:
+        Error("[Log] Level=ERROR")
 
 
 def getLogLevel() -> int:
