@@ -38,6 +38,7 @@ endif()
 include(cmake/Wrapper.cmake)
 
 # ---- V3: Cubism Native SDK ----
+include(cmake/PatchCubismShader.cmake)
 include(Live2D/V3/cmake/Live2D.cmake)
 
 # set(VIEWER 1)

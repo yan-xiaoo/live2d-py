@@ -1,5 +1,6 @@
 recursive-include Live2D *
 include cmake/Wrapper.cmake
+include cmake/PatchCubismShader.cmake
 recursive-include Wrapper *
 include package.live2d
 include CMakeLists.txt

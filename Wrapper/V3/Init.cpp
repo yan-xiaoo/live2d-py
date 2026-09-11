@@ -26,7 +26,8 @@ static PyObject *live2d_init_internal(PyObject *self, PyObject *args)
 
     LAppPal::InitShaderDir(path);
     _cubismOption.LogFunction = LAppPal::PrintLn;
-    _cubismOption.LoggingLevel = Csm::CubismFramework::Option::LogLevel_Verbose;
+    // 仅保留错误日志；Core 版本信息属于初始化诊断，不应在模型切换时刷屏。
+    _cubismOption.LoggingLevel = Csm::CubismFramework::Option::LogLevel_Error;
     _cubismOption.LoadFileFunction = LAppPal::LoadFileAsBytes;
     _cubismOption.ReleaseBytesFunction = LAppPal::ReleaseBytes;
 

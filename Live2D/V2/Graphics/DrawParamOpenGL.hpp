@@ -64,6 +64,7 @@ private:
     void lazyInit();
     std::vector<GLuint> mTextures;
     GLuint mCurrentFBO = 0;
+    GLint mPreviousProgram = 0;
     bool mInited = false;
     float mBaseRed = 1.0f, mBaseGreen = 1.0f, mBaseBlue = 1.0f, mBaseAlpha = 1.0f;
 };

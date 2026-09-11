@@ -108,6 +108,12 @@ void DrawParamOpenGL::lazyInit() {
 }
 
 DrawParamOpenGL::~DrawParamOpenGL() {
+    GLint program = 0;
+    if (mShaderNormal || mShaderMask) glGetIntegerv(GL_CURRENT_PROGRAM, &program);
+    if (program && (static_cast<GLuint>(program) == mShaderNormal ||
+                    static_cast<GLuint>(program) == mShaderMask)) {
+        glUseProgram(0);
+    }
     if (mShaderNormal) glDeleteProgram(mShaderNormal);
     if (mShaderMask) glDeleteProgram(mShaderMask);
     if (mFramebuffer) glDeleteFramebuffers(1, &mFramebuffer);
@@ -198,6 +204,7 @@ void DrawParamOpenGL::clearBuffer(float r, float g, float b, float a) {
 }
 
 void DrawParamOpenGL::setupDraw() {
+    glGetIntegerv(GL_CURRENT_PROGRAM, &mPreviousProgram);
     lazyInit();
     glGetIntegerv(GL_FRAMEBUFFER_BINDING, (GLint*)&mCurrentFBO);
     glDisable(GL_SCISSOR_TEST);
@@ -212,6 +219,7 @@ void DrawParamOpenGL::setupDraw() {
 
 void DrawParamOpenGL::endDraw() {
     glBindFramebuffer(GL_FRAMEBUFFER, mCurrentFBO);
+    glUseProgram(mPreviousProgram);
 }
 
 void DrawParamOpenGL::setMatrix(const float m[16]) {
