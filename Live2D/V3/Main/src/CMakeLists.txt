@@ -2,6 +2,7 @@ add_library(V3
   STATIC
   ${CMAKE_CURRENT_SOURCE_DIR}/Model.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/Model.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/MotionPlayback.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/LAppAllocator.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/LAppAllocator.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/LAppDefine.cpp

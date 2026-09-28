@@ -28,17 +28,6 @@ using namespace Live2D::Cubism::Framework::DefaultParameterId;
 using namespace Live2D::Cubism::Core;
 
 namespace {
-class FakeMotion : public ACubismMotion
-{
-protected:
-    void DoUpdateParameters(CubismModel* model, csmFloat32 userTimeSeconds, csmFloat32 weight,
-                            CubismMotionQueueEntry* motionQueueEntry) override
-    {}
-
-public:
-    FakeMotion() = default;
-};
-
 void LoadAssets(const std::string& filePath,
                 const std::function<void(csmByte*, csmSizeInt)>& afterLoadCallback)
 {
@@ -81,6 +70,7 @@ Model::Model()
 
 Model::~Model()
 {
+    StopAllMotions();
     _textureManager.ReleaseTextures();
 
     ReleaseMotions();
@@ -172,6 +162,7 @@ void Model::Update(float deltaSecs)
     if (_pose != NULL) {
         _pose->UpdateParameters(_model, deltaSecs);
     }
+    DispatchMotionCallbacks();
 }
 
 void Model::SetupModel()
@@ -351,7 +342,9 @@ bool Model::IsHit(CubismIdHandle drawableId, csmFloat32 pointX, csmFloat32 point
 bool Model::UpdateMotion(float deltaSecs)
 {
     _opacity = _model->GetModelOpacity();
-    return !_motionManager->IsFinished() && _motionManager->UpdateMotion(_model, deltaSecs);
+    const bool updated = !_motionManager->IsFinished() && _motionManager->UpdateMotion(_model, deltaSecs);
+    DispatchMotionCallbacks();
+    return updated;
 }
 
 void Model::UpdateDrag(float deltaSecs)
@@ -551,9 +544,8 @@ const float* Model::GetMvp()
     return _matrixManager.GetMvp().GetArray();
 }
 
-void Model::StartMotion(const char* group, int no, int priority, void* startCallee,
-                        ACubismMotion::BeganMotionCallback onStartMotionHandler, void* finishCallee,
-                        ACubismMotion::FinishedMotionCallback onFinishMotionHandler)
+void Model::StartMotion(const char* group, int no, int priority,
+                        MotionCallback onStart, MotionCallback onFinish)
 {
     if (priority == PriorityForce) {
         _motionManager->SetReservePriority(priority);
@@ -602,41 +594,33 @@ void Model::StartMotion(const char* group, int no, int priority, void* startCall
         Info("load tmp motion(%s)", name.GetRawString());
     }
 
-    if (motion) {
-        motion->group = group;
-        motion->no = no;
-        motion->SetBeganMotionCustomData(startCallee);
-        motion->SetFinishedMotionCustomData(finishCallee);
-        motion->SetBeganMotionHandler(onStartMotionHandler);
-        motion->SetFinishedMotionHandler(onFinishMotionHandler);
-    }
-
 handler_label:
 
     if (!hasMotion) {
         // 添加空指针判断，如果 motion 文件不存在，直接调用动作结束回调函数
         // 修复模型文件不存在时，导致崩溃
-        FakeMotion fakeMotion;
-        fakeMotion.group = group;
-        fakeMotion.no = no;
-        fakeMotion.SetBeganMotionCustomData(startCallee);
-        fakeMotion.SetFinishedMotionCustomData(finishCallee);
-        if (onStartMotionHandler) {
-            onStartMotionHandler(&fakeMotion);
-        }
-        if (onFinishMotionHandler) {
-            onFinishMotionHandler(&fakeMotion);
-        }
         _motionManager->SetReservePriority(PriorityNone);
+        if (onStart) onStart(group, no);
+        if (onFinish) onFinish(group, no);
+        return;
     }
 
-    _motionManager->StartMotionPriority(motion, autoDelete, priority);
+    if (!motion) {
+        _motionManager->SetReservePriority(PriorityNone);
+        return;
+    }
+    auto playback = std::make_shared<MotionPlayback>();
+    playback->group = group;
+    playback->index = no;
+    playback->onStart = std::move(onStart);
+    playback->onFinish = std::move(onFinish);
+    _motionPlaybacks.push_back(playback);
+    auto* instance = CSM_NEW PlaybackMotion(motion, autoDelete, playback);
+    _motionManager->StartMotionPriority(instance, true, priority);
 }
 
-void Model::StartRandomMotion(const char* group, int priority, void* startCallee,
-                              ACubismMotion::BeganMotionCallback startCalleeHandler,
-                              void* finishCallee,
-                              ACubismMotion::FinishedMotionCallback finishCalleeHandler)
+void Model::StartRandomMotion(const char* group, int priority,
+                              MotionCallback onStart, MotionCallback onFinish)
 {
     csmString g;
     int gindex = -1;
@@ -656,20 +640,14 @@ void Model::StartRandomMotion(const char* group, int priority, void* startCallee
         }
     }
 
-    if (gindex < 0) {
+    if (gindex < 0 || _motionCounts[gindex] == 0) {
         Info("MotionGroup [%s] not found", g.GetRawString());
         return;
     }
 
     csmInt32 no = rand() % _motionCounts[gindex];
 
-    StartMotion(g.GetRawString(),
-                no,
-                priority,
-                startCallee,
-                startCalleeHandler,
-                finishCallee,
-                finishCalleeHandler);
+    StartMotion(g.GetRawString(), no, priority, std::move(onStart), std::move(onFinish));
 }
 
 bool Model::IsMotionFinished()
@@ -1229,7 +1207,43 @@ void Model::LoadExtraExpression(const char* expressionId, const char* expression
 
 void Model::StopAllMotions()
 {
+    for (const auto& playback : _motionPlaybacks)
+        playback->cancelled = true;
     _motionManager->StopAllMotions();
+    // Clear the owning container before callback references can run finalizers.
+    auto retired = std::move(_motionPlaybacks);
+    _motionPlaybacks.clear();
+}
+
+void Model::DispatchMotionCallbacks()
+{
+    if (_dispatchingMotionCallbacks) return;
+    _dispatchingMotionCallbacks = true;
+    struct DispatchGuard {
+        bool& flag;
+        ~DispatchGuard() { flag = false; }
+    } guard{_dispatchingMotionCallbacks};
+    // Keep records alive across callbacks that call StopAllMotions/StartMotion.
+    const auto playbacks = _motionPlaybacks;
+    for (const auto& playback : playbacks) {
+        if (!playback->cancelled && playback->started && playback->onStart) {
+            MotionCallback callback;
+            callback.swap(playback->onStart);
+            callback(playback->group.c_str(), playback->index);
+        }
+        if (!playback->cancelled && playback->finished && playback->onFinish) {
+            MotionCallback callback;
+            callback.swap(playback->onFinish);
+            callback(playback->group.c_str(), playback->index);
+        }
+    }
+    _motionPlaybacks.erase(std::remove_if(_motionPlaybacks.begin(), _motionPlaybacks.end(),
+        [](const std::shared_ptr<MotionPlayback>& playback) {
+            return playback->retired && (playback->cancelled ||
+                ((!playback->started || !playback->onStart) &&
+                 (!playback->finished || !playback->onFinish)));
+        }),
+        _motionPlaybacks.end());
 }
 
 void Model::ResetAllParameters()

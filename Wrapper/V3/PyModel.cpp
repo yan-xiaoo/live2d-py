@@ -2,58 +2,34 @@
 
 #include <Log.hpp>
 
-static void MotionStartCallback(ACubismMotion *motion)
+static bool ValidateCallback(PyObject* callback)
 {
-	void* callee = motion->GetBeganMotionCustomData();
-	if (callee == nullptr)
-	{
-		return;
-	}
-	PyGILState_STATE state = PyGILState_Ensure();
-	PyObject *s_call = (PyObject *)callee;
-	PyObject *result = PyObject_CallFunction(s_call, "si", motion->group.c_str(), motion->no);
-	if (result != nullptr)
-		Py_XDECREF(result);
-	Py_XDECREF(s_call);
-	PyGILState_Release(state);
+    if (callback == nullptr || Py_IsNone(callback) || PyCallable_Check(callback))
+        return true;
+    PyErr_SetString(PyExc_TypeError, "handler must be callable or None");
+    return false;
 }
 
-static void MotionFinishCallback(ACubismMotion *motion)
+static MotionCallback MakeCallback(PyObject* callback)
 {
-	void* callee = motion->GetFinishedMotionCustomData();
-	if (callee == nullptr)
-	{
-		return;
-	}
-	PyGILState_STATE state = PyGILState_Ensure();
-	PyObject *f_call = (PyObject *)callee;
-	PyObject *result = PyObject_CallFunction(f_call, "si", motion->group.c_str(), motion->no);
-	if (result != nullptr)
-		Py_XDECREF(result);
-	Py_XDECREF(f_call);
-	PyGILState_Release(state);
-}
-
-
-static PyObject *MakeCallee(PyObject *callback)
-{
-	if (callback == nullptr)
-		return nullptr;
-
-	if (Py_IsNone(callback))
-	{
-		return nullptr;
-	}
-
-	if (!PyCallable_Check(callback))
-	{
-		PyErr_SetString(PyExc_TypeError, "handler must be callable or None");
-		return NULL;
-	}
-
-	Py_XINCREF(callback);
-
-	return callback;
+    if (callback == nullptr || Py_IsNone(callback)) return {};
+    Py_INCREF(callback);
+    // The function owns exactly one Python reference, including rejected,
+    // cancelled and never-started playback requests.
+    std::shared_ptr<PyObject> owned(callback, [](PyObject* object) {
+        const auto gil = PyGILState_Ensure();
+        Py_DECREF(object);
+        PyGILState_Release(gil);
+    });
+    return [owned](const char* group, int index) {
+        const auto gil = PyGILState_Ensure();
+        PyObject* result = PyObject_CallFunction(owned.get(), "si", group, index);
+        if (result == nullptr)
+            PyErr_WriteUnraisable(owned.get());
+        else
+            Py_DECREF(result);
+        PyGILState_Release(gil);
+    };
 }
 
 static PyObject *PyModel_Init(PyModelObject *self, PyObject *args, PyObject *kwargs)
@@ -434,9 +410,10 @@ static PyObject *PyModel_StartMotion(PyModelObject *self, PyObject *args, PyObje
 		PyErr_SetString(PyExc_TypeError, "arguments must be (str, int, [int, [callable, callable]])");
 		return NULL;
 	}
+    if (!ValidateCallback(onStartHandler) || !ValidateCallback(onFinishHandler))
+        return NULL;
 	self->model->StartMotion(group, no, priority,
-							 MakeCallee(onStartHandler), MotionStartCallback,
-							 MakeCallee(onFinishHandler), MotionFinishCallback);
+                             MakeCallback(onStartHandler), MakeCallback(onFinishHandler));
 	Py_RETURN_NONE;
 }
 static PyObject *PyModel_StartRandomMotion(PyModelObject *self, PyObject *args, PyObject *kwargs)
@@ -454,9 +431,10 @@ static PyObject *PyModel_StartRandomMotion(PyModelObject *self, PyObject *args, 
 		return NULL;
 	}
 
+    if (!ValidateCallback(onStartHandler) || !ValidateCallback(onFinishHandler))
+        return NULL;
 	self->model->StartRandomMotion(group, priority,
-								   MakeCallee(onStartHandler), MotionStartCallback,
-								   MakeCallee(onFinishHandler), MotionFinishCallback);
+                                   MakeCallback(onStartHandler), MakeCallback(onFinishHandler));
 	Py_RETURN_NONE;
 }
 static PyObject *PyModel_IsMotionFinished(PyModelObject *self, PyObject *args, PyObject *kwargs)

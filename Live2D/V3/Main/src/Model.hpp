@@ -17,6 +17,7 @@
 
 #include <LAppTextureManager.hpp>
 #include <MatrixManager.hpp>
+#include "MotionPlayback.hpp"
 
 using namespace Csm;
 
@@ -115,16 +116,11 @@ public:
     const float *GetMvp();
 
     // motion
-    void StartMotion(const char *group, int no, int priority = 3, void *startCallee = nullptr,
-                     ACubismMotion::BeganMotionCallback startCalleeHandler = nullptr,
-                     void *finishCallee = nullptr,
-                     ACubismMotion::FinishedMotionCallback finishCalleeHandler = nullptr);
+    void StartMotion(const char *group, int no, int priority = 3,
+                     MotionCallback onStart = {}, MotionCallback onFinish = {});
 
     void StartRandomMotion(const char *group = nullptr, int priority = 3,
-                           void *startCallee = nullptr,
-                           ACubismMotion::BeganMotionCallback startCalleeHandler = nullptr,
-                           void *finishCallee = nullptr,
-                           ACubismMotion::FinishedMotionCallback finishCalleeHandler = nullptr);
+                           MotionCallback onStart = {}, MotionCallback onFinish = {});
 
     bool IsMotionFinished();
 
@@ -223,6 +219,8 @@ public:
     bool HasMocConsistencyFromFile(const char *mocFileName);
 
 private:
+    void DispatchMotionCallbacks();
+
     enum class AutoBreathMode {
         Off,
         Full,
@@ -288,6 +286,8 @@ private:
 
     std::vector<csmString> _motionGroupNames;
     std::vector<int> _motionCounts;
+    std::vector<std::shared_ptr<MotionPlayback>> _motionPlaybacks;
+    bool _dispatchingMotionCallbacks = false;
 
     std::vector<float> _savedParameterValues;
 
