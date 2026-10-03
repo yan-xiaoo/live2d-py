@@ -1,4 +1,6 @@
-__version__ = "1.0.0"
+from __future__ import annotations
+
+__version__ = "1.0.0+d_sakiko.1"
 __csm_version__ = "5-r.5"
 __official_site__ = "https://www.live2d.com/en/sdk/about/"
 

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 # ======================== LEGAL DISCLAIMER (CORE COMPLIANCE) ========================
 DISCLAIMER = """
 ===========================================================================
@@ -5,17 +7,17 @@ IMPORTANT LEGAL DISCLAIMER
 ===========================================================================
 1. Copyright Ownership: Live2D Cubism Core library is the exclusive property of Live2D Inc.
    All intellectual property rights (including copyright) belong to Live2D Inc.
-   
-2. Distribution Restriction: Under Live2D's official Terms of Service, third parties are 
-   prohibited from distributing/sharing Cubism Core files. This script only provides an 
+
+2. Distribution Restriction: Under Live2D's official Terms of Service, third parties are
+   prohibited from distributing/sharing Cubism Core files. This script only provides an
    "auto-guided download" function and does NOT store or forward any Core files.
-   
-3. Compliance Requirement: You must adhere to the Live2D Cubism SDK End User License 
-   Agreement (EULA). Core library usage is restricted to legal personal/commercial projects 
+
+3. Compliance Requirement: You must adhere to the Live2D Cubism SDK End User License
+   Agreement (EULA). Core library usage is restricted to legal personal/commercial projects
    only—reverse engineering or secondary distribution of Core files is strictly forbidden.
-   
-4. Liability Waiver: This script is provided as a convenience tool only. It bears no 
-   responsibility for the integrity or compatibility of Core files. Any compliance issues 
+
+4. Liability Waiver: This script is provided as a convenience tool only. It bears no
+   responsibility for the integrity or compatibility of Core files. Any compliance issues
    arising from the use of this script are the sole responsibility of the user.
 
 OFFICIAL ACQUISITION CHANNELS (RECOMMENDED):
@@ -30,6 +32,101 @@ import platform
 import re
 import subprocess
 import sys
+
+DEFAULT_MACOS_DEPLOYMENT_TARGET = "14.0"
+DEFAULT_MACOS_ARCHITECTURES = ("arm64", "x86_64")
+PY_LIMITED_API = "0x03080000"
+PY_LIMITED_API_TAG = "cp38"
+
+
+def read_macos_config() -> dict[str, object]:
+    """读取 pyproject.toml 中的 macOS 构建配置。"""
+    pyproject_path = os.path.join(os.path.dirname(__file__), "pyproject.toml")
+    try:
+        if sys.version_info >= (3, 11):
+            import tomllib
+
+            with open(pyproject_path, "rb") as f:
+                pyproject = tomllib.load(f)
+            return (
+                pyproject.get("tool", {})
+                .get("live2d-py", {})
+                .get("macos", {})
+            )
+    except Exception:
+        pass
+
+    config: dict[str, object] = {}
+    try:
+        section_found = False
+        with open(pyproject_path, "r", encoding="utf-8") as f:
+            for line in f:
+                stripped = line.strip()
+                if stripped.startswith("[") and stripped.endswith("]"):
+                    section_found = stripped == "[tool.live2d-py.macos]"
+                    continue
+                if section_found and stripped.startswith("deployment-target"):
+                    config["deployment-target"] = (
+                        stripped.split("=", 1)[1].strip().strip('"').strip("'")
+                    )
+                if section_found and stripped.startswith("architectures"):
+                    values = stripped.split("=", 1)[1]
+                    config["architectures"] = tuple(
+                        item.strip().strip("[]").strip().strip('"').strip("'")
+                        for item in values.split(",")
+                        if item.strip().strip("[]").strip()
+                    )
+    except Exception:
+        pass
+
+    return config
+
+
+def read_macos_deployment_target() -> str:
+    """读取 macOS 最低部署版本。"""
+    configured = read_macos_config().get("deployment-target")
+    if configured:
+        return str(configured)
+    return DEFAULT_MACOS_DEPLOYMENT_TARGET
+
+
+def read_macos_architectures() -> tuple[str, ...]:
+    """读取 macOS wheel 需要包含的 CPU 架构。"""
+    configured = read_macos_config().get("architectures")
+    if isinstance(configured, str):
+        return tuple(arch.strip() for arch in configured.split(";") if arch.strip())
+    if isinstance(configured, (list, tuple)):
+        return tuple(str(arch) for arch in configured if str(arch))
+    return DEFAULT_MACOS_ARCHITECTURES
+
+
+MACOS_DEPLOYMENT_TARGET = read_macos_deployment_target()
+MACOS_ARCHITECTURES = read_macos_architectures()
+
+if sys.platform == "darwin":
+    os.environ.setdefault("MACOSX_DEPLOYMENT_TARGET", MACOS_DEPLOYMENT_TARGET)
+    os.environ.setdefault("CMAKE_OSX_ARCHITECTURES", ";".join(MACOS_ARCHITECTURES))
+
+
+def macos_wheel_plat_name() -> str:
+    """生成与当前 macOS 构建架构匹配的 wheel 平台标签。"""
+    architectures = tuple(
+        arch.strip()
+        for arch in os.environ.get(
+            "CMAKE_OSX_ARCHITECTURES", ";".join(MACOS_ARCHITECTURES)
+        ).split(";")
+        if arch.strip()
+    )
+    platform_arch = (
+        "universal2"
+        if set(architectures) == {"arm64", "x86_64"}
+        else architectures[0] if architectures else platform.machine()
+    )
+    return "macosx-{}-{}".format(
+        os.environ.get("MACOSX_DEPLOYMENT_TARGET", MACOS_DEPLOYMENT_TARGET),
+        platform_arch,
+    )
+
 
 from setuptools import setup, find_packages, Extension, Command
 from setuptools.command.build_ext import build_ext
@@ -61,7 +158,7 @@ LONG_DESCRIPTION = (
 AUTHOR = "Arkueid"
 AUTHOR_EMAIL = "thetardis@qq.com"
 URL = "https://github.com/Arkueid/live2d-py"
-REQUIRES_PYTHON = ">=3.11"
+REQUIRES_PYTHON = ">=3.8"
 INSTALL_REQUIRES = ["numpy", "pyopengl", "pillow"]
 
 
@@ -241,14 +338,19 @@ CORE_LIB_PATHS = [
     os.path.join(os.path.dirname(__file__), "Live2D", "V3", "Core"),
 ]
 
-def is_sdk_present():
-    """Check if Cubism SDK is already present (downloaded or vendored)."""
-    for p in CORE_LIB_PATHS:
-        if os.path.isdir(p) and os.listdir(p):
-            return True
-    return False
+def is_sdk_present() -> bool:
+    """只复用带 R5 Core API 和外置着色器的 SDK，避免误用旧缓存。"""
+    header = os.path.join(DST_DIR, "Core", "include", "Live2DCubismCore.h")
+    shaders = os.path.join(DST_DIR, "Framework", "src", "Rendering", "OpenGL", "Shaders", "Standard")
+    try:
+        with open(header, encoding="utf-8-sig") as source:
+            return "csmGetDrawableBlendModes" in source.read() and os.path.isdir(shaders)
+    except OSError:
+        return False
 
-def run_cmake():
+
+def run_cmake() -> None:
+    """构建统一扩展并保留最低 ABI、部署版本与双架构配置。"""
     global cmake_built
     if cmake_built:
         return
@@ -261,7 +363,7 @@ def run_cmake():
     else:
         print("[cmake] Cubism SDK already present, skipping download.")
 
-    cmake_args = ["-UFORMAT_UTIL"]
+    cmake_args = ["-DFORMAT_UTIL=OFF"]
     build_args = ["--config", "Release", "--target", "Live2DWrapper"]
 
     if platform.system() == "Windows":
@@ -271,36 +373,44 @@ def run_cmake():
         else:
             print("Building for 32 bit")
             cmake_args += ["-A", "Win32"]
-        # native options: use all available cores instead of a fixed /m:2
-        build_args += ["--", "/m:{}".format(os.cpu_count() or 2)]
+        # native options
+        build_args += ["--", "/m:2"]
     else:
         cmake_args += ["-DCMAKE_BUILD_TYPE=" + "Release"]
-        build_args += ["--", "-j{}".format(os.cpu_count() or 2)]
-    build_folder = os.path.join(os.getcwd(), "build")
+        build_args += ["--", "-j2"]
+        if platform.system() == "Darwin":
+            cmake_args += [
+                "-DCMAKE_OSX_DEPLOYMENT_TARGET="
+                + os.environ.get("MACOSX_DEPLOYMENT_TARGET", MACOS_DEPLOYMENT_TARGET)
+            ]
+            cmake_args += [
+                "-DCMAKE_OSX_ARCHITECTURES="
+                + os.environ.get("CMAKE_OSX_ARCHITECTURES", ";".join(MACOS_ARCHITECTURES))
+            ]
+    source_folder = os.path.dirname(os.path.abspath(__file__))
+    build_folder = os.path.join(source_folder, "build-unified")
 
     if not os.path.exists(build_folder):
         os.makedirs(build_folder)
 
-    if is_virtualenv():
-        python_installation_path = get_base_python_path(os.environ["VIRTUAL_ENV"])
-    else:
-        python_installation_path = os.path.split(sys.executable)[0]
-    print("Python installation path: " + python_installation_path)
+    python_executable = sys.executable
+    print("Python executable: " + python_executable)
     sys.stdout.flush()
 
-    cmake_args += ["-DPYTHON_INSTALLATION_PATH=" + python_installation_path]
+    cmake_args += ["-DPython3_EXECUTABLE=" + python_executable]
+    cmake_args += ["-DLIVE2D_PY_LIMITED_API=" + PY_LIMITED_API]
     cmake_args += ["-UVIEWER"]
 
-    cmake_setup = ["cmake", ".."] + cmake_args
-    cmake_build = ["cmake", "--build", "."] + build_args
+    cmake_setup = ["cmake", "-S", source_folder, "-B", build_folder] + cmake_args
+    cmake_build = ["cmake", "--build", build_folder] + build_args
 
     print("Building extension for Python {}".format(sys.version.split("\n", 1)[0]))
     print("Invoking CMake setup: '{}'".format(" ".join(cmake_setup)))
     sys.stdout.flush()
-    subprocess.check_call(cmake_setup, cwd=build_folder)
+    subprocess.check_call(cmake_setup)
     print("Invoking CMake build: '{}'".format(" ".join(cmake_build)))
     sys.stdout.flush()
-    subprocess.check_call(cmake_build, cwd=build_folder)
+    subprocess.check_call(cmake_build)
 
     cmake_built = True
 
@@ -319,7 +429,23 @@ class CMakeBuild(build_ext):
 
 
 class BuildWheel(bdist_wheel):
-    def run(self):
+    """生成 cp38-abi3 wheel，并保持 macOS 14 universal2 标签。"""
+    def initialize_options(self) -> None:
+        """初始化平台标签。"""
+        bdist_wheel.initialize_options(self)
+        if sys.platform == "darwin":
+            self.plat_name = macos_wheel_plat_name()
+
+    def finalize_options(self) -> None:
+        """确认最低 ABI 和平台标签。"""
+        if not self.py_limited_api:
+            self.py_limited_api = PY_LIMITED_API_TAG
+        if sys.platform == "darwin" and not self.plat_name:
+            self.plat_name = macos_wheel_plat_name()
+        bdist_wheel.finalize_options(self)
+
+    def run(self) -> None:
+        """先构建原生扩展再生成 wheel。"""
         run_cmake()
         bdist_wheel.run(self)
 
@@ -344,7 +470,7 @@ class Download(Command):
     def run(self):
         execute_download(CUBISM_SDK_DISTRIBUTION)
         print("Download completed successfully")
-        
+
 
 setup(
     name=NAME,
@@ -359,11 +485,13 @@ setup(
     ext_modules=[FakeExtension("LAppModelWrapper", ".")],
     cmdclass={"build_ext": CMakeBuild, "bdist_wheel": BuildWheel, "install": Install, "download": Download},
     packages=find_packages(where="package"),
-    package_data={"": ["**/*.pyd", "**/*.so", "**/*.pyi", "**/*.py", "**/*.dll"]},
+    include_package_data=False,
+    package_data={"live2d": ["_live2d.pyd", "_live2d.so", "_live2d.pyi",
+                              "FrameworkShaders/*.frag", "FrameworkShaders/*.vert"]},
     package_dir={"": "package"},
     keywords=["Live2D", "Cubism Live2D", "Cubism SDK", "Cubism SDK for Python"],
     python_requires=REQUIRES_PYTHON,
     # The extension modules link python3.dll (stable ABI, untagged .pyd names),
-    # so one cp311-abi3 wheel per platform covers every Python >= 3.11.
-    options={"bdist_wheel": {"py_limited_api": "cp311"}},
+    # so one cp38-abi3 wheel per platform covers every Python >= 3.8.
+    options={"bdist_wheel": {"py_limited_api": PY_LIMITED_API_TAG}},
 )

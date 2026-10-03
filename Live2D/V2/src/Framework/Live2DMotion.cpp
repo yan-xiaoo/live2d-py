@@ -3,6 +3,7 @@
 #include "ModelContext.hpp"
 #include <algorithm>
 #include <cmath>
+#include <cctype>
 #include <cstring>
 #include <sstream>
 
@@ -86,19 +87,24 @@ Live2DMotion* Live2DMotion::load(const std::vector<uint8_t>& data) {
         std::string key = line.substr(0, eq);
         std::string val = line.substr(eq + 1);
         // Strip leading '$' from key (MTN format: $fps=30)
-        if (!key.empty() && key[0] == '$')
+        while (!key.empty() && (key[0] == '$' || key[0] == '\''))
             key = key.substr(1);
 
-        if (key == "fps") {
+        std::string controlKey = key;
+        std::transform(controlKey.begin(), controlKey.end(), controlKey.begin(),
+                       [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
+        if (controlKey == "FPS") {
             m->mFps = (float)std::strtof(val.c_str(), nullptr);
-        } else if (key == "FADEIN") {
+        } else if (controlKey == "FADEIN") {
             m->mFadeInSec = (float)std::atoi(val.c_str()) / 1000.0f;
-        } else if (key == "FADEOUT") {
+        } else if (controlKey == "FADEOUT") {
             m->mFadeOutSec = (float)std::atoi(val.c_str()) / 1000.0f;
-        } else if (key == "LOOP") {
+        } else if (controlKey == "LOOP") {
             m->mLoop = (val == "1" || val == "true");
-        } else if (key == "LOOPFADEIN") {
+        } else if (controlKey == "LOOPFADEIN") {
             m->mLoopFadeIn = (val == "1" || val == "true");
+        } else if (controlKey.rfind("FADEIN:", 0) == 0 || controlKey.rfind("FADEOUT:", 0) == 0) {
+            continue; // MTN metadata must never become model parameter curves.
         } else {
             Motion motion;
             if (key.find("VISIBLE:") == 0) {

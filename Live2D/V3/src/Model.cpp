@@ -1,4 +1,4 @@
-﻿#include "V3/Model.hpp"
+#include "V3/Model.hpp"
 #include "IModel.hpp"
 #include "Motion/ACubismMotion.hpp"
 
@@ -87,6 +87,7 @@ Model::Model()
 }
 
 Model::~Model() {
+    StopAllMotions();
     mTextureManager.ReleaseTextures();
 
     ReleaseMotions();
@@ -209,6 +210,7 @@ void Model::Update(float deltaSecs) {
     if (mProxy._pose != NULL) {
         mProxy._pose->UpdateParameters(mProxy.GetModel(), deltaSecs);
     }
+    DispatchMotionCallbacks();
 }
 
 void Model::SetupModel() {
@@ -278,20 +280,7 @@ void Model::SetupModel() {
     {
         mProxy._breath = CubismBreath::Create();
 
-        csmVector<CubismBreath::BreathParameterData> breathParameters;
-
-        breathParameters.PushBack(
-            CubismBreath::BreathParameterData(mIdParamAngleX, 0.0f, 15.0f, 6.5345f, 0.5f));
-        breathParameters.PushBack(
-            CubismBreath::BreathParameterData(mIdParamAngleY, 0.0f, 8.0f, 3.5345f, 0.5f));
-        breathParameters.PushBack(
-            CubismBreath::BreathParameterData(mIdParamAngleZ, 0.0f, 10.0f, 5.5345f, 0.5f));
-        breathParameters.PushBack(
-            CubismBreath::BreathParameterData(mIdParamBodyAngleX, 0.0f, 4.0f, 15.5345f, 0.5f));
-        breathParameters.PushBack(CubismBreath::BreathParameterData(
-            CubismFramework::GetIdManager()->GetId(ParamBreath), 0.5f, 0.5f, 3.2345f, 0.5f));
-
-        mProxy._breath->SetParameters(breathParameters);
+        ApplyBreathParameters();
     }
 
     // UserData
@@ -354,8 +343,10 @@ void Model::SetupModel() {
 
 bool Model::UpdateMotion(float deltaSecs) {
     mProxy.SetOpacity(mProxy->GetModelOpacity());
-    return !mProxy._motionManager->IsFinished() &&
+    const bool updated = !mProxy._motionManager->IsFinished() &&
            mProxy._motionManager->UpdateMotion(mProxy.GetModel(), deltaSecs);
+    DispatchMotionCallbacks();
+    return updated;
 }
 
 void Model::UpdateDrag(float deltaSecs) {
@@ -555,37 +546,6 @@ const float* Model::GetMvp() {
     return mMatrixManager.GetMvp().GetArray();
 }
 
-namespace {
-// std::function 回调 <-> ACubismMotion void*/C 风格回调 的桥接
-struct MotionCallbackData {
-    IModel::MotionCallback onStart;
-    IModel::MotionCallback onFinish;
-    std::string group;
-    int no;
-};
-
-void MotionBeganHandler(ACubismMotion* motion) {
-    auto* data = static_cast<MotionCallbackData*>(motion->GetBeganMotionCustomData());
-    if (data == nullptr) {
-        return;
-    }
-    if (data->onStart) {
-        data->onStart(data->group, data->no);
-    }
-}
-
-void MotionFinishedHandler(ACubismMotion* motion) {
-    auto* data = static_cast<MotionCallbackData*>(motion->GetFinishedMotionCustomData());
-    if (data == nullptr) {
-        return;
-    }
-    if (data->onFinish) {
-        data->onFinish(data->group, data->no);
-    }
-    delete data;
-}
-}   // namespace
-
 void Model::StartMotion(const std::string& group, int no, int priority, MotionCallback onStart,
                         MotionCallback onFinish) {
     if (priority == MotionPriority::Force) {
@@ -635,29 +595,29 @@ void Model::StartMotion(const std::string& group, int no, int priority, MotionCa
         LOGI("load tmp motion(%s)", name.GetRawString());
     }
 
-    if (motion) {
-        auto* data = new MotionCallbackData{std::move(onStart), std::move(onFinish), group, no};
-        motion->SetBeganMotionCustomData(data);
-        motion->SetFinishedMotionCustomData(data);
-        motion->SetBeganMotionHandler(MotionBeganHandler);
-        motion->SetFinishedMotionHandler(MotionFinishedHandler);
-    }
-
 handler_label:
 
     if (!hasMotion) {
         // 添加空指针判断，如果 motion 文件不存在，直接调用动作结束回调函数
         // 修复模型文件不存在时，导致崩溃
-        if (onStart) {
-            onStart(group, no);
-        }
-        if (onFinish) {
-            onFinish(group, no);
-        }
         mProxy._motionManager->SetReservePriority(MotionPriority::None);
+        if (onStart) onStart(group, no);
+        if (onFinish) onFinish(group, no);
+        return;
     }
 
-    mProxy._motionManager->StartMotionPriority(motion, autoDelete, priority);
+    if (!motion) {
+        mProxy._motionManager->SetReservePriority(MotionPriority::None);
+        return;
+    }
+    auto playback = std::make_shared<MotionPlayback>();
+    playback->group = group;
+    playback->index = no;
+    playback->onStart = std::move(onStart);
+    playback->onFinish = std::move(onFinish);
+    mMotionPlaybacks.push_back(playback);
+    auto* instance = CSM_NEW PlaybackMotion(motion, autoDelete, playback);
+    mProxy._motionManager->StartMotionPriority(instance, true, priority);
 }
 
 void Model::StartRandomMotion(const std::string& group, int priority, MotionCallback onStart,
@@ -680,7 +640,7 @@ void Model::StartRandomMotion(const std::string& group, int priority, MotionCall
         }
     }
 
-    if (gindex < 0) {
+    if (gindex < 0 || mMotionCounts[gindex] == 0) {
         LOGI("MotionGroup [%s] not found", g.GetRawString());
         return;
     }
@@ -1168,7 +1128,7 @@ void Model::SetExpression(const char* expressionId, float fadeoutMs) {
 std::string Model::SetRandomExpression(float fadeoutMs) {
     const int size = mExpressions.GetSize();
     if (size == 0) {
-        return nullptr;
+        return {};
     }
     csmInt32 no = rand() % size;
     csmMap<csmString, ACubismMotion*>::const_iterator map_ite;
@@ -1181,7 +1141,7 @@ std::string Model::SetRandomExpression(float fadeoutMs) {
         }
         i++;
     }
-    return nullptr;
+    return {};
 }
 
 void Model::ResetExpressions() {
@@ -1242,8 +1202,45 @@ void Model::LoadExtraExpression(const char* expressionId, const char* expression
     });
 }
 
-void Model::StopAllMotions() {
+void Model::StopAllMotions()
+{
+    for (const auto& playback : mMotionPlaybacks)
+        playback->cancelled = true;
     mProxy._motionManager->StopAllMotions();
+    // Clear the owning container before callback references can run finalizers.
+    auto retired = std::move(mMotionPlaybacks);
+    mMotionPlaybacks.clear();
+}
+
+void Model::DispatchMotionCallbacks()
+{
+    if (mDispatchingMotionCallbacks) return;
+    mDispatchingMotionCallbacks = true;
+    struct DispatchGuard {
+        bool& flag;
+        ~DispatchGuard() { flag = false; }
+    } guard{mDispatchingMotionCallbacks};
+    // Keep records alive across callbacks that call StopAllMotions/StartMotion.
+    const auto playbacks = mMotionPlaybacks;
+    for (const auto& playback : playbacks) {
+        if (!playback->cancelled && playback->started && playback->onStart) {
+            MotionCallback callback;
+            callback.swap(playback->onStart);
+            callback(playback->group.c_str(), playback->index);
+        }
+        if (!playback->cancelled && playback->finished && playback->onFinish) {
+            MotionCallback callback;
+            callback.swap(playback->onFinish);
+            callback(playback->group.c_str(), playback->index);
+        }
+    }
+    mMotionPlaybacks.erase(std::remove_if(mMotionPlaybacks.begin(), mMotionPlaybacks.end(),
+        [](const std::shared_ptr<MotionPlayback>& playback) {
+            return playback->retired && (playback->cancelled ||
+                ((!playback->started || !playback->onStart) &&
+                 (!playback->finished || !playback->onFinish)));
+        }),
+        mMotionPlaybacks.end());
 }
 
 void Model::ResetAllParameters() {
@@ -1277,8 +1274,43 @@ void Model::SetAutoBlink(bool on) {
     autoBlink = on;
 }
 
+void Model::ApplyBreathParameters() {
+    if (!mProxy._breath) return;
+    if (mBreathParameterOnly) {
+        csmVector<CubismBreath::BreathParameterData> parameters;
+        parameters.PushBack(CubismBreath::BreathParameterData(
+            CubismFramework::GetIdManager()->GetId(ParamBreath), 0.5f, 0.5f, 3.2345f, 0.5f));
+        mProxy._breath->SetParameters(parameters);
+        return;
+    }
+        csmVector<CubismBreath::BreathParameterData> breathParameters;
+
+        breathParameters.PushBack(
+            CubismBreath::BreathParameterData(mIdParamAngleX, 0.0f, 15.0f, 6.5345f, 0.5f));
+        breathParameters.PushBack(
+            CubismBreath::BreathParameterData(mIdParamAngleY, 0.0f, 8.0f, 3.5345f, 0.5f));
+        breathParameters.PushBack(
+            CubismBreath::BreathParameterData(mIdParamAngleZ, 0.0f, 10.0f, 5.5345f, 0.5f));
+        breathParameters.PushBack(
+            CubismBreath::BreathParameterData(mIdParamBodyAngleX, 0.0f, 4.0f, 15.5345f, 0.5f));
+        breathParameters.PushBack(CubismBreath::BreathParameterData(
+            CubismFramework::GetIdManager()->GetId(ParamBreath), 0.5f, 0.5f, 3.2345f, 0.5f));
+
+        mProxy._breath->SetParameters(breathParameters);
+}
 void Model::SetAutoBreath(bool on) {
     autoBreath = on;
+    if (on) {
+        mBreathParameterOnly = false;
+        ApplyBreathParameters();
+    }
+}
+void Model::SetAutoBreathParameterOnly(bool on) {
+    autoBreath = on;
+    if (on) {
+        mBreathParameterOnly = true;
+        ApplyBreathParameters();
+    }
 }
 
 bool Model::AutoBreathEnabled() const {

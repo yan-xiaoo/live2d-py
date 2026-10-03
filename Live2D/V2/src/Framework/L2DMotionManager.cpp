@@ -46,6 +46,7 @@ bool L2DMotionManager::updateParam(ModelContext* context, float dtMs) {
         auto& e = mMotions[i];
         if (!e.mStarted) {
             e.mStarted = true;
+            if (e.mPlayback) e.mPlayback->started = true;
         }
         e.mElapsedMs += dtMs;
         float elapsed = e.mElapsedMs / 1000.0f;
@@ -77,7 +78,14 @@ bool L2DMotionManager::updateParam(ModelContext* context, float dtMs) {
 
         e.mMotion->updateParam(context, elapsed, weight);
         updated = true;
-        if (e.mFinished || e.mMotion->isFinished()) {
+        // Cached curves may be played concurrently; completion belongs to an entry.
+        const float duration = e.mMotion->getDurationSec();
+        const bool naturalFinish = !e.mMotion->isLoop() && duration >= 0 && elapsed > duration;
+        if (e.mFinished || naturalFinish) {
+            if (e.mPlayback) {
+                e.mPlayback->finished = naturalFinish;
+                e.mPlayback->retired = true;
+            }
             mMotions.erase(mMotions.begin() + i);
         } else {
             i++;
@@ -91,7 +99,11 @@ bool L2DMotionManager::isFinished() const {
     return mMotions.empty();
 }
 void L2DMotionManager::stopAllMotions() {
+    for (auto& entry : mMotions) {
+        if (entry.mPlayback) entry.mPlayback->retired = true;
+    }
     mMotions.clear();
+    mCurrentPriority = mReservePriority = 0;
 }
 }   // namespace V2
 }   // namespace Live2D

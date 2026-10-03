@@ -1,4 +1,4 @@
-﻿import time
+import time
 
 __enable = True
 
@@ -14,22 +14,23 @@ def isLogEnabled() -> bool:
     return __enable
 
 
-def setLogLevel(level: int):
+def setLogLevel(level: int) -> None:
+    """设置日志等级，兼容最低支持的 Python 3.8 语法。"""
     global __logLevel
     __logLevel = level
-    match __logLevel:
-        case 0:
-            LOGD("[Log] Level=DEBUG")
-        case 1:
-            LOGI("[Log] Level=INFO")
-        case 2:
-            LOGW("[Log] Level=WARN")
-        case 3:
-            LOGE("[Log] Level=ERROR")    
+    if __logLevel == 0:
+        LOGD("[Log] Level=DEBUG")
+    elif __logLevel == 1:
+        LOGI("[Log] Level=INFO")
+    elif __logLevel == 2:
+        LOGW("[Log] Level=WARN")
+    elif __logLevel == 3:
+        LOGE("[Log] Level=ERROR")
+
 
 
 def getLogLevel() -> int:
-    return __logLevel 
+    return __logLevel
 
 
 def LOGD(*args, **kwargs):

@@ -54,14 +54,14 @@ static PyObject* live2d_init_internal(PyObject* self, PyObject* args) {
     }
 
     const char* path;
-    if (PyArg_ParseTuple(args, "s", &path) < 0) {
+    if (!PyArg_ParseTuple(args, "s", &path)) {
         PyErr_SetString(PyExc_TypeError, "Invalid params (str)");
         return NULL;
     }
 
     V3::LAppPal::InitShaderDir(path);
     sCubismOption.LogFunction = V3::LAppPal::PrintLn;
-    sCubismOption.LoggingLevel = Csm::CubismFramework::Option::LogLevel_Warning;
+    sCubismOption.LoggingLevel = Csm::CubismFramework::Option::LogLevel_Error;
     sCubismOption.LoadFileFunction = V3::LAppPal::LoadFileAsBytes;
     sCubismOption.ReleaseBytesFunction = V3::LAppPal::ReleaseBytes;
 
@@ -73,7 +73,11 @@ static PyObject* live2d_init_internal(PyObject* self, PyObject* args) {
 }
 
 static PyObject* live2d_dispose() {
-    Csm::CubismFramework::Dispose();
+    if (sInitialized) {
+        Csm::CubismFramework::Dispose();
+        Csm::CubismFramework::CleanUp();
+        sInitialized = false;
+    }
     Py_RETURN_NONE;
 }
 
@@ -84,7 +88,8 @@ static PyObject* live2d_glInit() {
     }
 
     if (!gladLoadGL()) {
-        LOGE("Can't initilize glad.");
+        PyErr_SetString(PyExc_RuntimeError, "cannot initialize OpenGL without a current context");
+        return nullptr;
     }
 
 #ifdef DEBUG_ENABLE_CALLSTACK
@@ -98,11 +103,15 @@ static PyObject* live2d_glInit() {
     // 只打开 HIGH 严重级别（通常是真正的错误）
     glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_HIGH, 0, NULL, GL_TRUE);
 #endif
+    sGLInitialized = true;
     Py_RETURN_NONE;
 }
 
 static PyObject* live2d_glRelease() {
-    Csm::Rendering::CubismRenderer::StaticRelease();
+    if (sGLInitialized) {
+        Csm::Rendering::CubismRenderer::StaticRelease();
+        sGLInitialized = false;
+    }
     Py_RETURN_NONE;
 }
 

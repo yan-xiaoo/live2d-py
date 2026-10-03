@@ -73,3 +73,23 @@ csmsdk_temp
 raw/
 
 examples/live2d
+# 本地构建、SDK 下载产物和旧版扩展
+.env
+*.whl
+*.a
+*.so
+*.pyd
+*.dylib
+**/CMakeCache.txt
+**/Makefile
+**/cmake_install.cmake
+**/CMakeFiles/
+/build-*/
+/Live2D/V3/Core/
+/Live2D/V3/Framework/
+/Live2D/V3/Main/
+/Wrapper/V2/
+/Wrapper/V3/
+/package/live2d/v2cpp/
+/package/live2d/v3/
+/CubismSdkForWeb-*/

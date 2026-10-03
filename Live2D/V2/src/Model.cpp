@@ -23,6 +23,7 @@
 #include <GL/glew.h>
 #endif
 #include <cmath>
+#include <algorithm>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -43,6 +44,7 @@ static std::vector<uint8_t> readFile(const std::string& path) {
     if (!f)
         return {};   // missing file: tellg() would be -1 -> vector((size_t)-1) throws
     auto sz = f.tellg();
+    if (sz <= 0) return {};
     f.seekg(0);
     std::vector<uint8_t> data((size_t)sz);
     f.read((char*)data.data(), sz);
@@ -70,7 +72,7 @@ static void parseTexturePaths(const json& data, std::vector<std::string>& texPat
 
 Model::Model()
     : mRenderer(nullptr) {}
-Model::~Model() = default;
+Model::~Model() { StopAllMotions(); }
 
 void Model::LoadModelJson(const char* path, bool createRenderer) {
     const std::string pathStr(path ? path : "");
@@ -318,7 +320,7 @@ void Model::Update(float deltaSecs) {
     float dt;
     if (deltaSecs < 0.0f) {
         // 墙钟路径（Python v2 1:1）
-        float now = (float)UtSystem::getUserTimeMSec();
+        double now = UtSystem::getUserTimeMSec();
         dt = (mLastFrameTimeMs != 0.0f) ? (now - mLastFrameTimeMs) / 1000.0f : 0.0f;
         mLastFrameTimeMs = now;
     } else {
@@ -347,22 +349,6 @@ void Model::Update(float deltaSecs) {
     }
     mModelContext->saveParam();
 
-    // Check motion finish callback
-    // Save and clear BEFORE calling, so re-entrant StartMotion
-    // (called from within the callback) can set new callbacks safely.
-    if (mCallbacksPending && mMainMotionMgr->isFinished()) {
-        auto onFinish = std::move(mOnFinishMotion);
-        auto onStart = std::move(mOnStartMotion);
-        auto group = mCurrentGroup;
-        auto no = mCurrentMotionNo;
-        mOnFinishMotion = nullptr;
-        mOnStartMotion = nullptr;
-        mCallbacksPending = false;
-
-        if (onFinish)
-            onFinish(group, no);
-    }
-
     // Python suppresses eye-blink while a main motion is active
     if (!updated && mAutoBlink && mEyeBlink)
         mEyeBlink->updateParam(mModelContext.get(), dtMs);
@@ -386,11 +372,13 @@ void Model::Update(float deltaSecs) {
 
     // Auto-breath animation (match v2 Python periods)
     if (mAutoBreath) {
-        float t = mBreathTimeMs / 1000.0f;
+        float t = mBreathTimeMs / 1000.0f * 6.283185307179586f;
+        if (!mBreathParameterOnly) {
         addParam("PARAM_ANGLE_X", 15.0f * sinf(t / 6.5345f), 0.5f);
         addParam("PARAM_ANGLE_Y", 8.0f * sinf(t / 3.5345f), 0.5f);
         addParam("PARAM_ANGLE_Z", 10.0f * sinf(t / 5.5345f), 0.5f);
         addParam("PARAM_BODY_ANGLE_X", 4.0f * sinf(t / 15.5345f), 0.5f);
+        }
         int breathIdx = mModelContext->getParamIndex(&Id::getID("PARAM_BREATH"));
         if (breathIdx >= 0)
             mModelContext->setParamFloat(breathIdx, 0.5f + 0.5f * sinf(t / 3.2345f));
@@ -400,6 +388,7 @@ void Model::Update(float deltaSecs) {
         mPhysics->updateParam(mModelContext.get(), (long long)dtMs);
     if (mPose)
         mPose->updateParam(mModelContext.get(), dt);
+    DispatchMotionCallbacks();
 }
 void Model::Draw() {
     // Match v2 Python: process deformer chain in draw(), not update()
@@ -455,53 +444,34 @@ std::string Model::SetRandomExpression(float fadeoutMs) {
         }
         return it->first.c_str();
     }
-    return nullptr;
+    return {};
 }
 void Model::StartMotion(const std::string& group, int no, int priority, MotionCallback onStart,
                         MotionCallback onFinish) {
-    mOnStartMotion = std::move(onStart);
-    mOnFinishMotion = std::move(onFinish);
     auto it = mMotions.find(group);
-    if (it != mMotions.end() && !it->second.empty()) {
-        if (no < 0 || no >= (int)it->second.size())
-            no = 0;
-
-        // Priority check (match Python v2)
-        if (priority == MotionPriority::Force) {
-            LOGI("Start motion (force): group=%s no=%d priority=%d", group.c_str(), no, priority);
-            mMainMotionMgr->setReservePriority(priority);
-        } else if (!mMainMotionMgr->reserveMotion(priority)) {
-            // Lower priority than current motion — don't play
-            LOGI("Start motion rejected (low priority): group=%s no=%d priority=%d current=%d",
-                 group.c_str(),
-                 no,
-                 priority,
-                 mMainMotionMgr->mCurrentPriority);
-            if (mOnStartMotion)
-                mOnStartMotion(group, no);
-            if (mOnFinishMotion)
-                mOnFinishMotion(group, no);
-            mOnStartMotion = nullptr;
-            mOnFinishMotion = nullptr;
-            return;
-        }
-
-        mCallbacksPending = true;
-        mCurrentGroup = group;
-        mCurrentMotionNo = no;
-        if (mOnStartMotion)
-            mOnStartMotion(group, no);
-        LOGD("Start motion: group=%s no=%d priority=%d", group.c_str(), no, priority);
-        mMainMotionMgr->startMotionPrio(it->second[no].get(), priority);
-    } else {
-        LOGD("Start motion: group=%s not found or empty", group.c_str());
-        if (mOnStartMotion)
-            mOnStartMotion(group, no);
-        if (mOnFinishMotion)
-            mOnFinishMotion(group, no);
-        mOnStartMotion = nullptr;
-        mOnFinishMotion = nullptr;
+    if (it == mMotions.end() || it->second.empty()) {
+        if (onStart) onStart(group, no);
+        if (onFinish) onFinish(group, no);
+        return;
     }
+    if (no < 0 || no >= static_cast<int>(it->second.size())) no = 0;
+    if (priority == MotionPriority::Force) {
+        mMainMotionMgr->setReservePriority(priority);
+    } else if (!mMainMotionMgr->reserveMotion(priority)) {
+        return;
+    }
+    auto playback = std::make_shared<MotionPlayback>();
+    playback->group = group;
+    playback->index = no;
+    playback->onStart = std::move(onStart);
+    playback->onFinish = std::move(onFinish);
+    mMotionPlaybacks.push_back(playback);
+    auto* motion = it->second[no].get();
+    // Preserve D_sakiko's minimum main-motion transition duration.
+    motion->setFadeIn(std::max(motion->mFadeInSec, 1.5f));
+    motion->setFadeOut(std::max(motion->mFadeOutSec, 1.5f));
+    const int index = mMainMotionMgr->startMotionPrio(motion, priority);
+    mMainMotionMgr->mMotions[index].mPlayback = playback;
 }
 void Model::StartRandomMotion(const std::string& group, int priority, MotionCallback onStart,
                               MotionCallback onFinish) {
@@ -521,8 +491,45 @@ void Model::StartRandomMotion(const std::string& group, int priority, MotionCall
         StartMotion(group, no, priority, std::move(onStart), std::move(onFinish));
     }
 }
-void Model::StopAllMotions() {
-    mClearFlag = true;
+void Model::StopAllMotions()
+{
+    for (const auto& playback : mMotionPlaybacks)
+        playback->cancelled = true;
+    mMainMotionMgr->stopAllMotions();
+    // Clear the owning container before callback references can run finalizers.
+    auto retired = std::move(mMotionPlaybacks);
+    mMotionPlaybacks.clear();
+}
+
+void Model::DispatchMotionCallbacks()
+{
+    if (mDispatchingMotionCallbacks) return;
+    mDispatchingMotionCallbacks = true;
+    struct DispatchGuard {
+        bool& flag;
+        ~DispatchGuard() { flag = false; }
+    } guard{mDispatchingMotionCallbacks};
+    // Keep records alive across callbacks that call StopAllMotions/StartMotion.
+    const auto playbacks = mMotionPlaybacks;
+    for (const auto& playback : playbacks) {
+        if (!playback->cancelled && playback->started && playback->onStart) {
+            MotionCallback callback;
+            callback.swap(playback->onStart);
+            callback(playback->group.c_str(), playback->index);
+        }
+        if (!playback->cancelled && playback->finished && playback->onFinish) {
+            MotionCallback callback;
+            callback.swap(playback->onFinish);
+            callback(playback->group.c_str(), playback->index);
+        }
+    }
+    mMotionPlaybacks.erase(std::remove_if(mMotionPlaybacks.begin(), mMotionPlaybacks.end(),
+        [](const std::shared_ptr<MotionPlayback>& playback) {
+            return playback->retired && (playback->cancelled ||
+                ((!playback->started || !playback->onStart) &&
+                 (!playback->finished || !playback->onFinish)));
+        }),
+        mMotionPlaybacks.end());
 }
 void Model::ResetExpression() {
     mFadeoutMs = -1.0f;
@@ -766,6 +773,11 @@ float Model::GetPixelsPerUnit() {
 }
 void Model::SetAutoBreath(bool v) {
     mAutoBreath = v;
+    if (v) mBreathParameterOnly = false;
+}
+void Model::SetAutoBreathParameterOnly(bool on) {
+    mAutoBreath = on;
+    if (on) mBreathParameterOnly = true;
 }
 void Model::SetAutoBlink(bool v) {
     mAutoBlink = v;
@@ -792,6 +804,7 @@ bool Model::UpdateMotion(float deltaSecs) {
     mModelContext->loadParam();
     bool updated = mMainMotionMgr->updateParam(mModelContext.get(), deltaSecs * 1000.0f);
     mModelContext->saveParam();
+    DispatchMotionCallbacks();
     return updated;
 }
 void Model::UpdateDrag(float deltaSecs) {
@@ -823,11 +836,13 @@ void Model::UpdateBreath(float deltaSecs) {
             mModelContext->setParamFloat(idx, cur + value * weight);
         }
     };
-    float t = mBreathTimeMs / 1000.0f;
+    float t = mBreathTimeMs / 1000.0f * 6.283185307179586f;
+    if (!mBreathParameterOnly) {
     addParam("PARAM_ANGLE_X", 15.0f * sinf(t / 6.5345f), 0.5f);
     addParam("PARAM_ANGLE_Y", 8.0f * sinf(t / 3.5345f), 0.5f);
     addParam("PARAM_ANGLE_Z", 10.0f * sinf(t / 5.5345f), 0.5f);
     addParam("PARAM_BODY_ANGLE_X", 4.0f * sinf(t / 15.5345f), 0.5f);
+    }
     int breathIdx = mModelContext->getParamIndex(&Id::getID("PARAM_BREATH"));
     if (breathIdx >= 0)
         mModelContext->setParamFloat(breathIdx, 0.5f + 0.5f * sinf(t / 3.2345f));

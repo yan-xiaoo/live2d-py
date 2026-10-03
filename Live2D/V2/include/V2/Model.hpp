@@ -4,6 +4,7 @@
 #include "MatrixManagerV2.hpp"
 #include "GLRenderer.hpp"
 #include <IModel.hpp>
+#include <MotionPlaybackState.hpp>
 #include <functional>
 #include <memory>
 #include <string>
@@ -134,6 +135,8 @@ public:
 
     void SetAutoBreath(bool v) override;
     void SetAutoBlink(bool v) override;
+    void SetAutoBreathParameterOnly(bool on) override;
+
     bool AutoBreathEnabled() const override;
     bool AutoBlinkEnabled() const override;
 
@@ -156,23 +159,22 @@ private:
     // Model 是唯一读墙钟的地方，且只做一件事: 墙钟路径每帧算一次 dt
     //（delta 路径直接用传入值）。子系统全部收 dt、内部累计 elapsed。
     float mBreathTimeMs = 0;            // 呼吸动画累计（Model 自己的逻辑）
-    float mLastFrameTimeMs = 0;         // 墙钟路径上一帧时间戳（算 dt 用）
+    double mLastFrameTimeMs = 0;         // 墙钟路径上一帧时间戳（算 dt 用）
     float mOffsetX = 0, mOffsetY = 0;   // SetOffsetX/Y 跟踪
     float mFadeoutMs = -1.0f;           // 表情 fadeout 时长（<0 关闭）
     float mFadeoutElapsedMs = 0;        // fadeout 已累计
     std::string mLastExpression;        // 持久表情（fadeout 结束后恢复）
+    bool mBreathParameterOnly = false;
     bool mAutoBreath = true, mAutoBlink = true;
     bool mClearFlag = false;
     std::string mModelHomeDir;
 
-    StartCallback mOnStartMotion;
-    FinishCallback mOnFinishMotion;
-    bool mCallbacksPending = false;
-    std::string mCurrentGroup;
+    void DispatchMotionCallbacks();
+    std::vector<std::shared_ptr<MotionPlayback>> mMotionPlaybacks;
+    bool mDispatchingMotionCallbacks = false;
     std::vector<std::string> mTexturePaths;
     std::unordered_map<std::string, std::vector<MotionInfo>> mMotionInfos;
     std::unordered_map<std::string, std::string> mExpressionFiles;
-    int mCurrentMotionNo = 0;
     std::unique_ptr<GLRenderer> mRenderer;
     float mMvpCache[16] = {};
     std::vector<float> mDrawableVertexCache;

@@ -1,6 +1,7 @@
-name: MacOS-arm64 📦
+name: MacOS-universal2 📦
 
 on:
+  workflow_dispatch:
   push:
     tags:
       - "v*.*.*"
@@ -13,7 +14,10 @@ concurrency:
 jobs:
   build-n-publish:
     name: Build📦 for MacOS
-    runs-on: macos-latest
+    runs-on: macos-14
+    env:
+      MACOSX_DEPLOYMENT_TARGET: "14.0"
+      CMAKE_OSX_ARCHITECTURES: "arm64;x86_64"
     permissions:
       contents: write
 
@@ -25,7 +29,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          # Stable-ABI build: a single cp311-abi3 wheel covers Python >= 3.11
+          # Stable-ABI build: a single cp38-abi3 wheel covers Python >= 3.8
           python-version: '3.11'
           cache: pip
 
@@ -44,6 +48,15 @@ jobs:
       - name: Build a binary wheel
         run: python setup.py bdist_wheel
 
+      - name: Test native regressions
+        run: |
+          python -m pip install dist/*.whl
+          python -m pip install pygame pyopengl
+          python tests/test_v3_motion_callbacks.py -q
+          python tests/test_v2_motion_callbacks.py -q
+          python tests/test_runtime_migration.py -q
+          python tests/test_gl_lifecycle.py -q
+
       - name: Test Run (v2, v2cpp, v3)
         run: |
           pip install pyside6 pyopengl numpy pillow
@@ -57,6 +70,23 @@ jobs:
         with:
           name: screenshots-macos
           path: package/screenshot_*.png
+
+      - name: Set up minimum Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.8'
+
+      - name: Verify Python 3.8 ABI and runtime
+        run: |
+          python -m pip install dist/*.whl
+          python tests/test_v3_motion_callbacks.py -q
+          python tests/test_v2_motion_callbacks.py -q
+          python tests/test_runtime_migration.py -q
+
+      - name: Restore publishing Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
       - name: Publish distribution to PyPI
         if: startsWith(github.ref, 'refs/tags/v')

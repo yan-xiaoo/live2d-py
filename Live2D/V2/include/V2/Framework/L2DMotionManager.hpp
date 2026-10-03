@@ -2,6 +2,7 @@
 #include "AMotion.hpp"
 #include "ModelContext.hpp"
 #include <vector>
+#include <MotionPlaybackState.hpp>
 namespace Live2D {
 namespace V2 {
 class ALive2DModel;
@@ -12,6 +13,7 @@ struct MotionQueueEntry {
     float mElapsedMs = 0;             // 累计播放时长（dt 积分）
     float mFadeInElapsedMs = 0;       // 累计淡入时长
     float mFadeOutEndElapsedMs = -1;  // 淡出结束时刻的 mElapsedMs（-1 = 未调度）
+    std::shared_ptr<MotionPlayback> mPlayback;
     bool mFinished = false;           // true when fade-out 已完成
 };
 class L2DMotionManager {

@@ -35,6 +35,7 @@ public:
 
     void setClipDrawMode(bool on) { mClipDrawMode = on; }
     void setClipMaskMode(bool on) { mClipMaskMode = on; }
+    const ClipContext* mClipMaskContext = nullptr;
     bool mClipMaskMode = false;   // Mask RENDER pass (writes to FBO)
     bool mClipDrawMode = false;   // Clipped DRAW pass (uses mask)
     int mClipChannel = 0;

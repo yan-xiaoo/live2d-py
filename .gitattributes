@@ -1,4 +1,14 @@
 # 强制所有文件使用 LF 换行符
 * text=auto eol=lf
-# 忽略权限变更
-* -diff mode
+# 源文件保留可审阅的文本差异
+*.py diff
+*.pyi diff
+*.hpp diff
+*.cpp diff
+*.cmake diff
+*.txt diff
+*.toml diff
+*.yml diff
+*.md diff
+.gitattributes diff
+.gitignore diff

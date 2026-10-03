@@ -13,7 +13,7 @@
     <img title="Live2D Viewer Distro" src="https://github.com/EasyLive2D/live2d-py/actions/workflows/build-live2dviewer.yml/badge.svg">
     <br>
     <img title="Release Version" src="https://img.shields.io/github/v/release/EasyLive2D/live2d-py" alt="Docker Build Version" style="margin: 0 10px;">
-    <img title="Python Version" src="https://img.shields.io/badge/python-3.11+-blue" alt="Python Version" style="margin: 0 10px;">
+    <img title="Python Version" src="https://img.shields.io/badge/python-3.8+-blue" alt="Python Version" style="margin: 0 10px;">
     <img title="CMake" src="https://img.shields.io/badge/CMake-3.26+-orange" alt="CMake" style="margin: 0 10px;">
     <img title="C++" src="https://img.shields.io/badge/C%2B%2B-17-yellow" alt="C++17" style="margin: 0 10px;">
     <img title="CsmSDK" src="https://img.shields.io/badge/CsmSDK-5--r.5-orange" alt="CsmSDK" style="margin: 0 10px;">
@@ -30,6 +30,29 @@
 基于 Python C Extension 对 Live2D Native SDK (C++) 进行了封装。理论上，只要配置好 OpenGL 上下文，可在 Python 中将 live2d 绘制在任何基于 OpenGL 的窗口。
 
 代码使用示例：[examples](./examples/)
+
+## D_sakiko 维护版本
+
+当前版本为 `1.0.0+d_sakiko.1`，基于上游 `v1.0.0`（`35f686412470ea25718fa9c76ee4f1809f6a8506`）。
+原生 V2/V3 均使用 `live2d.Model`，按模型文件自动选择 SDK；参数、动作和自动动画接口跟随上游统一 API。
+
+保留的下游补丁包括：逐次播放独立的动作回调及引用释放、回调重入保护、仅驱动呼吸参数、
+V2 MTN 元数据及时间精度修复、V2 遮罩通道和裁剪范围修复，以及 OpenGL 着色器释放与窗口重新初始化。
+V2 主动作至少 1.5 秒淡入淡出的体验策略也继续保留。
+
+最低 Python 版本为 3.8，原生扩展使用 `cp38-abi3`；macOS 默认构建 `macosx_14_0_universal2`。
+注意：官方 Cubism 5-r.5 的 Core 静态库对象标注最低 macOS 15.7，虽然最终扩展的部署版本为 14.0，
+仍须在真实 macOS 14 上通过运行测试才能确认兼容。可手动运行 MacOS-universal2 CI，验证后再发布。
+
+安装生成的 wheel 后，可在仓库根目录运行原生回归测试：
+
+```shell
+python tests/test_v3_motion_callbacks.py -q
+python tests/test_v2_motion_callbacks.py -q
+python tests/test_runtime_migration.py -q
+# 需要 pygame 和可用的真实 OpenGL 上下文
+python tests/test_gl_lifecycle.py -q
+```
 
 详细使用文档：[Wiki](https://github.com/EasyLive2D/live2d-py/wiki)
 
@@ -69,11 +92,11 @@
 
 :construction:, :x:: 编译期问题或平台兼容性问题待解决
 
-| Platform | Python Version | `live2d.v2` | `live2d.v2cpp` | `live2d.v3` | PyPI |
+| Platform | Python Version | `live2d.v2` | `live2d.Model` V2 | `live2d.Model` V3 | PyPI |
 |----------|---------------|-------------|----------------|-------------|------|
-| macOS arm64 | `>=3.11` |:white_check_mark:|:white_check_mark:|:white_check_mark:|:white_check_mark:|
-| Windows x64 | `>=3.11` |:white_check_mark:|:white_check_mark:|:white_check_mark:|:white_check_mark:|
-| Linux x64 | `>=3.11` |:white_check_mark:|:white_check_mark:|:white_check_mark:|:white_check_mark:|
+| macOS arm64 | `>=3.8` |:white_check_mark:|:white_check_mark:|:white_check_mark:|:white_check_mark:|
+| Windows x64 | `>=3.8` |:white_check_mark:|:white_check_mark:|:white_check_mark:|:white_check_mark:|
+| Linux x64 | `>=3.8` |:white_check_mark:|:white_check_mark:|:white_check_mark:|:white_check_mark:|
 
 注：
 

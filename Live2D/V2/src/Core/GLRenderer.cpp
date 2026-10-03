@@ -1,6 +1,7 @@
 #include "GLRenderer.hpp"
 #include "Log.hpp"
 #include "ClippingManagerOpenGL.hpp"
+#include "ClipContext.hpp"
 #include "PartsData.hpp"
 #include "PartsDataContext.hpp"
 #include "Mesh.hpp"
@@ -134,6 +135,10 @@ void GLRenderer::init(ModelContext* modelContext) {
 }
 
 GLRenderer::~GLRenderer() {
+    GLint current = 0;
+    glGetIntegerv(GL_CURRENT_PROGRAM, &current);
+    if (current && (static_cast<GLuint>(current) == mShaderNormal || static_cast<GLuint>(current) == mShaderMask))
+        glUseProgram(0);
     if (mShaderNormal)
         glDeleteProgram(mShaderNormal);
     if (mShaderMask)
@@ -268,11 +273,7 @@ void GLRenderer::setupDraw(ModelContext* modelContext) {
 
 void GLRenderer::endDraw() {
     glBindFramebuffer(GL_FRAMEBUFFER, mCurrentFBO);
-    // When changing model: v2cpp => v3,
-    // v3 may get save the wrong program id to `lastProgramId`
-    // and produce an silent gl error when restore `lastProgramId`.
-    // This error will be checked and raised in v2.
-    // Thus, re-bind program to `0`
+    // Preserve the caller's program; renderer destruction unbinds owned programs.
     glUseProgram(mCurrentProgram);
 }
 
@@ -348,13 +349,11 @@ void GLRenderer::drawTexture(int texNo, const std::array<float, 4>& screenColor,
         glUseProgram(mShaderNormal);
         glUniformMatrix4fv(mUniforms.normMvp, 1, GL_FALSE, mClipMatrix.data());
         glUniform1i(mUniforms.normMaskFlag, 1);
-        // u_baseColor = clip rect (full [-1,1] for full-FBO mask render)
-        glUniform4f(mUniforms.normBaseColor, -1.0f, -1.0f, 1.0f, 1.0f);
-        float chR = (mClipChannel == 0) ? 1.0f : 0, chG = (mClipChannel == 1) ? 1.0f : 0,
-              chB = (mClipChannel == 2) ? 1.0f : 0, chA = (mClipChannel == 3) ? 1.0f : 0;
-        // Channel color: R=ch0, G=ch1, B=ch2, A=ch3
-        float cR = (mClipChannel == 0) ? 1.0f : 0, cG = (mClipChannel == 1) ? 1.0f : 0,
-              cB = (mClipChannel == 2) ? 1.0f : 0, cA = (mClipChannel == 3) ? 1.0f : 0;
+        const auto& bounds = mClipMaskContext->mLayoutBounds;
+        glUniform4f(mUniforms.normBaseColor, bounds[0] * 2 - 1, bounds[1] * 2 - 1,
+                    (bounds[0] + bounds[2]) * 2 - 1, (bounds[1] + bounds[3]) * 2 - 1);
+        float cR = mClipChannel == 1, cG = mClipChannel == 2,
+              cB = mClipChannel == 3, cA = mClipChannel == 0;
         glUniform4f(mUniforms.normChannelFlag, cR, cG, cB, cA);
         glUniform4f(mUniforms.normScreenColor, 0, 0, 0, 0);
         glUniform4f(mUniforms.normMultiplyColor, 1, 1, 1, 0);
@@ -377,8 +376,8 @@ void GLRenderer::drawTexture(int texNo, const std::array<float, 4>& screenColor,
                     multiplyColor[1],
                     multiplyColor[2],
                     multiplyColor[3]);
-        float chR = (mClipChannel == 0) ? 1.0f : 0, chG = (mClipChannel == 1) ? 1.0f : 0,
-              chB = (mClipChannel == 2) ? 1.0f : 0, chA = (mClipChannel == 3) ? 1.0f : 0;
+        float chR = mClipChannel == 1, chG = mClipChannel == 2,
+              chB = mClipChannel == 3, chA = mClipChannel == 0;
         glUniform4f(mUniforms.maskChannelFlag, chR, chG, chB, chA);
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, getTexture(texNo));

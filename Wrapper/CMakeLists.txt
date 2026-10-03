@@ -8,7 +8,8 @@ add_library(${WRAPPER} SHARED
 
 target_compile_definitions(${WRAPPER} PRIVATE MODULE_LOG_TAG="pyi")
 
-target_link_libraries(${WRAPPER} PRIVATE Live2D::Live2D Python3::SABIModule)
+target_link_libraries(${WRAPPER} PRIVATE Live2D::Live2D)
+target_link_limited_python(${WRAPPER})
 
 set_wrapper_output(${WRAPPER} "_live2d")
 

@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <object.h>
 #include <string>
+#include <memory>
 
 using namespace nlohmann;
 using namespace Live2D;
@@ -27,54 +28,13 @@ private:
     PyGILState_STATE mGILState;
 };
 
-// ---- Check moc file version
+static int CheckVersionFromString(const char* jsonData, const char* rootPath);
 static int CheckVersion(const char* jsonPath) {
-    std::filesystem::path jp = std::filesystem::u8path(jsonPath);
-    std::ifstream jsonFile(jp);
-    auto data = json::parse(jsonFile);
-    jsonFile.close();
-
-
-    if (auto modelIt = data["model"]; modelIt.is_string()) {
-        auto mocPath = modelIt.get<std::string>();
-        auto mp = std::filesystem::u8path(mocPath);
-        auto fp = jp.parent_path() / mp;
-        std::ifstream mocFile(fp, std::ios::binary);
-        if (mocFile) {
-            char moc[3];
-            mocFile.read(moc, 3);
-            if (memcmp(moc, "moc", 3) == 0) {
-                return 2;
-            } else {
-                LOGE("%s is not a valid moc", mocPath.c_str());
-            }
-        } else {
-            LOGE("cannot open %s", mp.c_str());
-        }
-    } else {
-        if (auto frIt = data["FileReferences"]; frIt.is_object()) {
-            if (auto mocIt = frIt["Moc"]; mocIt.is_string()) {
-                auto mocPath = mocIt.get<std::string>();
-                auto mp = std::filesystem::u8path(mocPath);
-                auto fp = jp.parent_path() / mp;
-                std::ifstream mocFile(fp, std::ios::binary);
-                if (mocFile) {
-                    char moc[4];
-                    mocFile.read(moc, 4);
-                    if (memcmp(moc, "MOC3", 4) == 0) {
-                        return 3;
-                    } else {
-                        LOGE("%s is not a valid moc3", mocPath.c_str());
-                    }
-                } else {
-                    LOGE("cannot open %s", mp.c_str());
-                }
-            }
-        }
-        LOGE("%s is not a valid json", jsonPath);
-    }
-    std::abort();
-    return -1;
+    const auto path = std::filesystem::u8path(jsonPath);
+    std::ifstream input(path);
+    if (!input) return -1;
+    std::string data((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
+    return CheckVersionFromString(data.c_str(), path.parent_path().generic_u8string().c_str());
 }
 
 // ---- 从内存 json 文本探测 moc 版本（rootPath 为资源根目录，可为空 = 相对 CWD）
@@ -136,66 +96,42 @@ static int CheckVersionFromString(const char* jsonData, const char* rootPath) {
     return -1;
 }
 
-// ---- Callback helpers (Python → C++ conversion) ----
-static auto MakeMotionCallback(PyObject* cb, PyModelObject* self, bool isOnStart) -> std::function<void(const std::string&, int)> {
-    if (!cb || Py_IsNone(cb) || !PyCallable_Check(cb))
-        return nullptr;
-    Py_INCREF(cb);
-    PyObject* lastCb;
-    if (isOnStart) {
-        lastCb = self->onStart;
-        self->onStart = cb;
-    } else {
-        lastCb = self->onFinish;
-        self->onFinish = cb;
-    }
-    if (lastCb) {
-        Py_XDECREF(lastCb);
-    }
+static bool ValidateCallback(PyObject* callback)
+{
+    if (callback == nullptr || Py_IsNone(callback) || PyCallable_Check(callback))
+        return true;
+    PyErr_SetString(PyExc_TypeError, "handler must be callable or None");
+    return false;
+}
 
-    return [self, isOnStart](const std::string& g, int n) {
-        PyGILGuard GIL;
-        PyObject* cb;
-        if (isOnStart) {
-            cb = self->onStart;
-            self->onStart = nullptr;
-        } else {
-            cb = self->onFinish;
-            self->onFinish = nullptr;
-        }
-        if (!cb) {
-            return;
-        }
-        PyObject* r = PyObject_CallFunction(cb, "si", g.c_str(), n);
-        if (r)
-            Py_DECREF(r);
+static IModel::MotionCallback MakeMotionCallback(PyObject* callback)
+{
+    if (callback == nullptr || Py_IsNone(callback)) return {};
+    Py_INCREF(callback);
+    // The function owns exactly one Python reference, including rejected,
+    // cancelled and never-started playback requests.
+    std::shared_ptr<PyObject> owned(callback, [](PyObject* object) {
+        const auto gil = PyGILState_Ensure();
+        Py_DECREF(object);
+        PyGILState_Release(gil);
+    });
+    return [owned](const std::string& group, int index) {
+        const auto gil = PyGILState_Ensure();
+        PyObject* result = PyObject_CallFunction(owned.get(), "si", group.c_str(), index);
+        if (result == nullptr)
+            PyErr_WriteUnraisable(owned.get());
         else
-            PyErr_Print();
-        Py_XDECREF(cb);
+            Py_DECREF(result);
+        PyGILState_Release(gil);
     };
 }
 
 static PyObject* PyModel_Init(PyModelObject* self, PyObject* args, PyObject* kwargs) {
     self->model = nullptr;
-    self->onStart = nullptr;
-    self->onFinish = nullptr;
     return 0;
 }
 static void PyModel_Dealloc(PyModelObject* self, PyObject* args, PyObject* kwargs) {
-    LOGD("deallocate: cpp Model(at=%p)", self->model);
     delete self->model;
-    // fix uncalled callback leak
-    if (self->onStart != nullptr) {
-        Py_XDECREF(self->onStart);
-        self->onStart = nullptr;
-        LOGI("release uncalled onStart");
-    }
-    if (self->onFinish != nullptr) {
-        Py_XDECREF(self->onFinish);
-        self->onFinish = nullptr;
-        LOGI("release uncalled onFinish");
-    }
-    LOGD("deallocate: PyModelObject(at=%p)", self);
     PyObject_Free(self);
 }
 static PyObject* PyModel_LoadModelJson(PyModelObject* self, PyObject* args, PyObject* kwargs) {
@@ -213,6 +149,10 @@ static PyObject* PyModel_LoadModelJson(PyModelObject* self, PyObject* args, PyOb
         return NULL;
     }
     int version = CheckVersion(modelJsonPath);
+    if (version < 0) {
+        PyErr_Format(PyExc_ValueError, "cannot load model: %s", modelJsonPath);
+        return nullptr;
+    }
     if (version == 2) {
         self->model = new V2::Model();
     } else if (version == 3) {
@@ -654,11 +594,13 @@ static PyObject* PyModel_StartMotion(PyModelObject* self, PyObject* args, PyObje
                         "arguments must be (str, int, [int, [callable, callable]])");
         return NULL;
     }
+    if (!ValidateCallback(onStartHandler) || !ValidateCallback(onFinishHandler))
+        return nullptr;
     self->model->StartMotion(group,
                              no,
                              priority,
-                             MakeMotionCallback(onStartHandler, self, true),
-                             MakeMotionCallback(onFinishHandler, self, false));
+                             MakeMotionCallback(onStartHandler),
+                             MakeMotionCallback(onFinishHandler));
     Py_RETURN_NONE;
 }
 static PyObject* PyModel_StartRandomMotion(PyModelObject* self, PyObject* args, PyObject* kwargs) {
@@ -681,10 +623,12 @@ static PyObject* PyModel_StartRandomMotion(PyModelObject* self, PyObject* args, 
         return NULL;
     }
 
+    if (!ValidateCallback(onStartHandler) || !ValidateCallback(onFinishHandler))
+        return nullptr;
     self->model->StartRandomMotion(group ? group : "",
                                    priority,
-                                   MakeMotionCallback(onStartHandler, self, true),
-                                   MakeMotionCallback(onFinishHandler, self, false));
+                                   MakeMotionCallback(onStartHandler),
+                                   MakeMotionCallback(onFinishHandler));
     Py_RETURN_NONE;
 }
 static PyObject* PyModel_IsMotionFinished(PyModelObject* self, PyObject* args, PyObject* kwargs) {
@@ -1124,6 +1068,12 @@ static PyObject* PyModel_SetAutoBreath(PyModelObject* self, PyObject* args, PyOb
     Py_RETURN_NONE;
 }
 
+static PyObject* PyModel_SetAutoBreathParameterOnly(PyModelObject* self, PyObject* args) {
+    int on;
+    if (!PyArg_ParseTuple(args, "p", &on)) return nullptr;
+    self->model->SetAutoBreathParameterOnly(on != 0);
+    Py_RETURN_NONE;
+}
 static PyObject* PyModel_SetAutoBlink(PyModelObject* self, PyObject* args, PyObject* kwargs) {
     bool on;
     if (!PyArg_ParseTuple(args, "b", &on)) {
@@ -1387,6 +1337,7 @@ static PyMethodDef PyModel_Methods[] = {
     {"GetCanvasSizePixel", (PyCFunction)PyModel_GetCanvasSizePixel, METH_VARARGS, ""},
     {"GetPixelsPerUnit", (PyCFunction)PyModel_GetPixelsPerUnit, METH_VARARGS, ""},
 
+    {"SetAutoBreathParameterOnly", (PyCFunction)PyModel_SetAutoBreathParameterOnly, METH_VARARGS, "Drive only the breath parameter."},
     {"SetAutoBreath", (PyCFunction)PyModel_SetAutoBreath, METH_VARARGS, ""},
     {"SetAutoBlink", (PyCFunction)PyModel_SetAutoBlink, METH_VARARGS, ""},
 

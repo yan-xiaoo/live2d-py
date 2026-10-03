@@ -14,6 +14,7 @@
 
 
 #include <IModel.hpp>
+#include <MotionPlayback.hpp>
 
 #include <CubismUserModelProxy.hpp>
 #include <Motion/ACubismMotion.hpp>
@@ -232,6 +233,8 @@ public:
 
     void SetAutoBreath(bool on) override;
 
+    void SetAutoBreathParameterOnly(bool on) override;
+
     bool AutoBreathEnabled() const override;
 
     bool AutoBlinkEnabled() const override;
@@ -239,6 +242,8 @@ public:
     bool HasMocConsistencyFromFile(const char* mocFileName) override;
 
 private:
+    void DispatchMotionCallbacks();
+    void ApplyBreathParameters();
     void ReleaseMotions();
 
     void ReleaseExpressions();
@@ -298,6 +303,9 @@ private:
 
     std::vector<float> mSavedParameterValues;
 
+    std::vector<std::shared_ptr<MotionPlayback>> mMotionPlaybacks;
+    bool mDispatchingMotionCallbacks = false;
+    bool mBreathParameterOnly = false;
     bool autoBreath;
     bool autoBlink;
 

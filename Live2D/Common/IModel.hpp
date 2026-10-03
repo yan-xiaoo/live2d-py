@@ -163,6 +163,7 @@ public:
 
     // ---- 自动机制 ----
     virtual void SetAutoBreath(bool on) = 0;
+    virtual void SetAutoBreathParameterOnly(bool on) = 0;
     virtual void SetAutoBlink(bool on) = 0;
     virtual bool AutoBreathEnabled() const = 0;
     virtual bool AutoBlinkEnabled() const = 0;

@@ -50,7 +50,7 @@ jobs:
             /opt/python/cp311-cp311/bin/pip install cmake
             export PATH="/opt/python/cp311-cp311/bin:$PATH"
 
-            # Stable-ABI build: one cp311-abi3 wheel covers Python >= 3.11
+            # Stable-ABI build: one cp38-abi3 wheel covers Python >= 3.8
             PYBIN=/opt/python/cp311-cp311/bin
             "$PYBIN/pip" install --upgrade setuptools wheel packaging
             "$PYBIN/python" setup.py bdist_wheel
