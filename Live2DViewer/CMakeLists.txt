@@ -1,4 +1,4 @@
-set(CMAKE_PREFIX_PATH "/home/thyne/Qt/6.9.1/gcc_64/lib/cmake/Qt6/")
+set(CMAKE_PREFIX_PATH "D:/Dev/Qt/6.10.0/msvc2022_64")
 set(CMAKE_AUTOMOC ON)   # 自动处理 Q_OBJECT 宏的元对象编译（moc）
 set(CMAKE_AUTOUIC ON)   # 自动编译 UI 文件（.ui → .h）
 set(CMAKE_AUTORCC ON)   # 自动编译资源文件（.qrc → .cpp）
@@ -62,7 +62,7 @@ target_link_libraries(Live2DViewer
     Qt6::Widgets
     Qt6::Gui
     Qt6::OpenGLWidgets 
-    Live2D::Main
+    Live2D::Live2D
 )
 
 # Platform-specific output directories
@@ -70,6 +70,7 @@ if(WIN32)
     set_target_properties(Live2DViewer PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY_DEBUG ${PROJECT_SOURCE_DIR}/x64/Debug
         RUNTIME_OUTPUT_DIRECTORY_RELEASE ${PROJECT_SOURCE_DIR}/x64/Release
+        RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO ${PROJECT_SOURCE_DIR}/x64/RelWithDebInfo
     )
 endif()
 
@@ -79,6 +80,7 @@ file(COPY moeroid.ico DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 # Windows-specific deployment
 if(WIN32)
     set(MARKER $<IF:$<CONFIG:DEBUG>,${PROJECT_SOURCE_DIR}/x64/Debug/.deployed,${PROJECT_SOURCE_DIR}/x64/Release/.deployed>)
+    set(MARKER $<IF:$<CONFIG:RelWithDebInfo>,${PROJECT_SOURCE_DIR}/x64/RelWithDebInfo/.deployed,${MARKER}>)
 
     # 获取 windeployqt6 工具的路径
     get_target_property(_qmake_executable Qt6::qmake IMPORTED_LOCATION)
@@ -93,7 +95,9 @@ if(WIN32)
         COMMAND
         ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_BINARY_DIR}/moeroid.ico $<TARGET_FILE_DIR:Live2DViewer>/moeroid.ico
         COMMAND 
-        ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/../Live2D/V3/Framework/src/Rendering/OpenGL/Shaders/Standard $<TARGET_FILE_DIR:Live2DViewer>/FrameworkShaders
+        ${CMAKE_COMMAND} -E copy_directory $<TARGET_PROPERTY:Framework,LIVE2D_SHADER_DIR> $<TARGET_FILE_DIR:Live2DViewer>/FrameworkShaders
+        COMMAND
+        ${CMAKE_COMMAND} -E copy $<TARGET_FILE:Common> $<TARGET_FILE_DIR:Live2DViewer>/
     )
 else()
     # Linux deployment - just copy the icon
@@ -102,8 +106,8 @@ else()
         POST_BUILD
         COMMAND
         ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_BINARY_DIR}/moeroid.ico $<TARGET_FILE_DIR:Live2DViewer>/moeroid.ico
-        COMMAND 
-        ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/../Live2D/V3/Framework/src/Rendering/OpenGL/Shaders/Standard $<TARGET_FILE_DIR:Live2DViewer>/FrameworkShaders
+        COMMAND
+        ${CMAKE_COMMAND} -E copy_directory $<TARGET_PROPERTY:Framework,LIVE2D_SHADER_DIR> $<TARGET_FILE_DIR:Live2DViewer>/FrameworkShaders
     )
 endif()
 

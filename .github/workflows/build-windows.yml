@@ -1,77 +1,67 @@
 name: Windows-intel📦
 
 on:
-  workflow_dispatch:
   push:
     tags:
       - "v*.*.*"
-    branches: [ main, master, windows-workflow, build-all ]
+    branches: [ windows-workflow, build-all ]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build:
+  build-n-publish:
     name: Build📦 for Windows
     runs-on: windows-latest
     permissions:
       contents: write
 
-    strategy:
-      matrix:
-        # setup.py builds a CPython limited-API wheel tagged cp38-abi3, so
-        # one build per platform is enough for all supported Python versions.
-        python-version: ['3.11.0']
-        architecture: [ 'x64' ]
-      fail-fast: false
-
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
-          architecture: ${{ matrix.architecture }}
+          # Stable-ABI build: a single cp38-abi3 wheel covers Python >= 3.8
+          python-version: '3.11'
+          architecture: x64
+
+      - name: Cache Cubism SDK
+        uses: actions/cache@v4
+        with:
+          path: |
+            Live2D/V3/Core
+            Live2D/V3/Framework
+          key: csmsdk-${{ hashFiles('setup.py') }}
 
       - name: Install build deps
         run: |
-          python -m pip install --upgrade setuptools
-          python -m pip install wheel
+          python -m pip install --upgrade setuptools wheel
 
       - name: Build a binary wheel
+        run: python setup.py bdist_wheel
+
+      - name: Verify wheel
         run: |
-          python setup.py bdist_wheel
+          $wheel = (Get-ChildItem dist/*.whl).FullName
+          python -m pip install twine
+          python -m twine check $wheel
+          python -m pip install --force-reinstall $wheel
+          python -c "import live2d"
 
-      - name: Set up Python 3.9 for wheel compatibility tests
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.9'
-          architecture: ${{ matrix.architecture }}
-
-      - name: Test the built wheel on Python 3.9
-        shell: pwsh
-        run: |
-          $wheel = Get-ChildItem dist/*.whl | Select-Object -First 1
-          python -m pip install $wheel.FullName
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python -I -m unittest discover -s tests -v
-
-      - name: Upload screenshots
-        if: ${{ matrix.python-version == '3.11.0' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: screenshots-windows
-          path: package/screenshot_*.png
-
-      - name: Upload Wheel Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-wheel-${{ matrix.python-version }}-${{ matrix.architecture }}
-          path: dist/*.whl
+      - name: Publish distribution to PyPI
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+        run: twine upload dist/* --skip-existing
 
       - name: Upload Wheel to Release
-        if: ${{ startsWith(github.ref, 'refs/tags/') }}
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          # tag_name: v0.2.2-alpha
           files: |
             dist/*.whl

@@ -3,14 +3,11 @@ from typing import TYPE_CHECKING, List, Optional
 
 from .DEF import PIVOT_TABLE_SIZE, MAX_INTERPOLATION
 from .draw import IDrawData
-from .graphics import ClippingManagerOpenGL
 from .id import Id
-from .type import Array, Float32Array, Int16Array
 
 if TYPE_CHECKING:
     from .draw import MeshContext, Mesh
     from .model import PartsDataContext
-    from .graphics import DrawParamOpenGL
 
 
 class ModelContext:
@@ -26,34 +23,43 @@ class ModelContext:
         self.needSetup = True
         self.initVersion = -1
         self.nextParamPos = 0
-        self.paramIdList = Array(ModelContext.DEFAULT_ARRAY_LENGTH)
-        self.paramValues = Float32Array(ModelContext.DEFAULT_ARRAY_LENGTH)
-        self.lastParamValues = Float32Array(ModelContext.DEFAULT_ARRAY_LENGTH)
-        self.paramMinValues = Float32Array(ModelContext.DEFAULT_ARRAY_LENGTH)
-        self.paramMaxValues = Float32Array(ModelContext.DEFAULT_ARRAY_LENGTH)
-        self.savedParamValues = Float32Array(ModelContext.DEFAULT_ARRAY_LENGTH)
-        self.updatedParamFlags = Array(ModelContext.DEFAULT_ARRAY_LENGTH)
-        self.deformerList = Array()
-        self.drawDataList: List[Optional['Mesh']] = Array()
+        self.paramIdList = [None] * (ModelContext.DEFAULT_ARRAY_LENGTH)
+        self.paramValues = [0.0] * (ModelContext.DEFAULT_ARRAY_LENGTH)
+        self.lastParamValues = [0.0] * (ModelContext.DEFAULT_ARRAY_LENGTH)
+        self.paramMinValues = [0.0] * (ModelContext.DEFAULT_ARRAY_LENGTH)
+        self.paramMaxValues = [0.0] * (ModelContext.DEFAULT_ARRAY_LENGTH)
+        self.savedParamValues = [0.0] * (ModelContext.DEFAULT_ARRAY_LENGTH)
+        self.updatedParamFlags = [None] * (ModelContext.DEFAULT_ARRAY_LENGTH)
+        self.deformerList = []
+        self.drawDataList: List[Optional['Mesh']] = []
         self.tmpDrawDataList = None
-        self.partsDataList = Array()
-        self.deformerContextList = Array()
-        self.drawContextList = Array()
-        self.partsContextList: List[Optional[PartsDataContext]] = Array()
+        self.partsDataList = []
+        self.deformerContextList = []
+        self.drawContextList = []
+        self.partsContextList: List[Optional[PartsDataContext]] = []
         self.orderList_firstDrawIndex = None
         self.orderList_lastDrawIndex = None
         self.nextList_drawIndex = None
-        self.tmpPivotTableIndices = Int16Array(PIVOT_TABLE_SIZE)
-        self.tempTArray = Float32Array(MAX_INTERPOLATION)
+        self.tmpPivotTableIndices = [0] * (PIVOT_TABLE_SIZE)
+        self.tempTArray = [0.0] * (MAX_INTERPOLATION)
         self.model = model
-        self.clipManager = None
-        self.dpGL = None
+        # Id -> index caches (Id objects are unhashable because __eq__ is
+        # defined without __hash__, so key by the interned id string).
+        self._paramIndexCache = {}
+        self._drawDataIndexCache = {}
+        self._partsDataIndexCache = {}
 
     def getDrawDataIndex(self, drawDataId) -> int:
+        key = drawDataId.id if isinstance(drawDataId, Id) else str(drawDataId)
+        idx = self._drawDataIndexCache.get(key)
+        if idx is not None:
+            return idx
         for aH in range(len(self.drawDataList) - 1, 0 - 1, -1):
             if self.drawDataList[aH] is not None and self.drawDataList[aH].getId() == drawDataId:
+                self._drawDataIndexCache[key] = aH
                 return aH
 
+        self._drawDataIndexCache[key] = -1
         return -1
 
     def getDrawData(self, aH):
@@ -95,8 +101,8 @@ class ModelContext:
         aO = self.model.getModelImpl()
         parts_data_list = aO.getPartsDataList()
         aS = len(parts_data_list)
-        aH = Array()
-        a3 = Array()
+        aH = []
+        a3 = []
         for aV in range(0, aS, 1):
             a4 = parts_data_list[aV]
             self.partsDataList.append(a4)
@@ -151,8 +157,6 @@ class ModelContext:
 
                     self.extendAndAddParam(aQ.getParamID(), aQ.getDefaultValue(), aQ.getMinValue(), aQ.getMaxValue())
 
-        self.clipManager = ClippingManagerOpenGL(self.dpGL)
-        self.clipManager.init(self, self.drawDataList, self.drawContextList)
         self.needSetup = True
 
     def update(self):
@@ -169,15 +173,15 @@ class ModelContext:
         aZ = IDrawData.getTotalMaxOrder()
         aU = aZ - aS + 1
         if self.orderList_firstDrawIndex is None or len(self.orderList_firstDrawIndex) < aU:
-            self.orderList_firstDrawIndex = Int16Array(aU)
-            self.orderList_lastDrawIndex = Int16Array(aU)
+            self.orderList_firstDrawIndex = [0] * (aU)
+            self.orderList_lastDrawIndex = [0] * (aU)
 
         for i in range(0, aU, 1):
             self.orderList_firstDrawIndex[i] = ModelContext.NOT_USED_ORDER
             self.orderList_lastDrawIndex[i] = ModelContext.NOT_USED_ORDER
 
         if self.nextList_drawIndex is None or len(self.nextList_drawIndex) < aN:
-            self.nextList_drawIndex = Int16Array(aN)
+            self.nextList_drawIndex = [0] * (aN)
 
         for i in range(0, aN, 1):
             self.nextList_drawIndex[i] = ModelContext.NO_NEXT
@@ -221,47 +225,21 @@ class ModelContext:
         self.needSetup = False
         return aX
 
-    def preDraw(self, aH: 'DrawParamOpenGL'):
-        if self.clipManager is not None:
-            aH.setupDraw()
-            self.clipManager.setupClip(self, aH)
-
-    def draw(self, aM):
-        if self.orderList_firstDrawIndex is None:
-            print("call Ri_.update() before Ri_.draw() ")
-            return
-
-        aP = len(self.orderList_firstDrawIndex)
-        aM.setupDraw()
-        for aK in range(0, aP, 1):
-            aN = self.orderList_firstDrawIndex[aK]
-            if aN == ModelContext.NOT_USED_ORDER:
-                continue
-
-            while True:
-                aH = self.drawDataList[aN]
-                aI = self.drawContextList[aN]
-                if aI.isAvailable():
-                    aJ = aI.partsIndex
-                    aL = self.partsContextList[aJ]
-                    aI.partsOpacity = aL.getPartsOpacity()
-                    # print(aL.partsData.id.id, aH.id.id, aH.clipID)
-                    aH.draw(aM, self, aI)
-
-                aO = self.nextList_drawIndex[aN]
-                if aO <= aN or aO == ModelContext.NO_NEXT:
-                    break
-
-                aN = aO
-        aM.endDraw()
-
     def getParamIndex(self, paramId):
+        key = paramId.id if isinstance(paramId, Id) else str(paramId)
+        idx = self._paramIndexCache.get(key)
+        if idx is not None:
+            return idx
+
         for i in range(0, len(self.paramIdList), 1):
             p = self.paramIdList[i]
             if p == paramId:
+                self._paramIndexCache[key] = i
                 return i
 
-        return self.extendAndAddParam(paramId, 0, ModelContext.PARAM_FLOAT_MIN, ModelContext.PARAM_FLOAT_MAX)
+        idx = self.extendAndAddParam(paramId, 0, ModelContext.PARAM_FLOAT_MIN, ModelContext.PARAM_FLOAT_MAX)
+        self._paramIndexCache[key] = idx
+        return idx
 
     def getDeformerIndex(self, aH):
         for aI in range(len(self.deformerList) - 1, 0 - 1, -1):
@@ -342,10 +320,16 @@ class ModelContext:
         return aH.getPartsOpacity()
 
     def getPartsDataIndex(self, aI):
+        key = aI.id if isinstance(aI, Id) else str(aI)
+        idx = self._partsDataIndexCache.get(key)
+        if idx is not None:
+            return idx
         for aH in range(len(self.partsDataList) - 1, 0 - 1, -1):
             if self.partsDataList[aH] is not None and self.partsDataList[aH].getId() == aI:
+                self._partsDataIndexCache[key] = aH
                 return aH
 
+        self._partsDataIndexCache[key] = -1
         return -1
 
     def getDeformerContext(self, aH):
@@ -376,9 +360,3 @@ class ModelContext:
 
     def getPartScreenColor(self, aH):
         return self.partsContextList[aH].screenColor
-
-    def setDrawParam(self, aH):
-        self.dpGL = aH
-
-    def getDrawParam(self):
-        return self.dpGL

@@ -1,0 +1,24 @@
+#pragma once
+#include "AMotion.hpp"
+#include "L2DExpressionParam.hpp"
+#include "ModelContext.hpp"
+#include <cstdint>
+#include <vector>
+namespace Live2D {
+namespace V2 {
+class L2DExpressionMotion : public AMotion {
+public:
+    L2DExpressionMotion();
+    void updateParam(ModelContext* model, float timeSec, float weight) override;
+    float getDurationSec() const override { return 1.0f; }
+    bool isLoop() const override { return false; }
+    bool isFinished() const override { return mFinished; }
+    void reset() override { mFinished = false; }
+    static L2DExpressionMotion* load(const std::vector<uint8_t>& data);
+    std::vector<L2DExpressionParam> mParams;
+
+private:
+    bool mFinished = false;
+};
+}   // namespace V2
+}   // namespace Live2D

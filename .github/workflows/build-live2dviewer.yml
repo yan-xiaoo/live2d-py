@@ -8,18 +8,20 @@ on:
       - "v*.*.*"
     branches: [ live2d-viewer ]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
-    # The CMake configure and build commands are platform agnostic and should work equally well on Windows or Mac.
-    # You can convert this to a matrix build if you need cross-platform coverage.
-    # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
     runs-on: windows-latest
     permissions:
       contents: write
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        submodules: recursive
 
     - name: Set up Python
       uses: actions/setup-python@v5
@@ -27,10 +29,18 @@ jobs:
         python-version: 3.13
         architecture: X64
         cache: pip
-    
+
     - name: Install build deps
       run: |
         python -m pip install --upgrade setuptools
+
+    - name: Cache Cubism SDK
+      uses: actions/cache@v4
+      with:
+        path: |
+          Live2D/V3/Core
+          Live2D/V3/Framework
+        key: csmsdk-${{ hashFiles('setup.py') }}
 
     - name: Download CsmNativeSDK
       run: python setup.py download
@@ -50,16 +60,16 @@ jobs:
         arch: win64_msvc2022_64 # optional
 
     - name: Configure Debug
-      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=Debug -DVIEWER=1
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=Debug -DVIEWER=ON
 
     - name: Build Debug
       # Build your program with the given configuration
-      run: cmake --build ${{github.workspace}}/build --config Debug 
+      run: cmake --build ${{github.workspace}}/build --config Debug
 
     - name: Configure Release
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
-      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=Release -DVIEWER=1
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=Release -DVIEWER=ON
 
     - name: Build Release
       # Build your program with the given configuration
@@ -71,6 +81,7 @@ jobs:
         Compress-Archive -Path ${{github.workspace}}/x64 -DestinationPath ${{github.workspace}}/Live2DViewer-win64.zip
 
     - name: Upload Wheel to Release
+      if: startsWith(github.ref, 'refs/tags/v')
       uses: softprops/action-gh-release@v2
       with:
         files: |

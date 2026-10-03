@@ -1,5 +1,8 @@
 #pragma once
 
+#include <IModel.hpp>
+
+#include "scene/Live2DScene.hpp"
 #include "ui_Live2DView.h"
 
 #include <QJsonObject>
@@ -10,14 +13,14 @@ class Live2DView : public QWidget
 {
     Q_OBJECT
 
-    void initExpressions(Model *model);
-    void initMotions(Model *model);
-    
-    void initCdi(Model *model);
+    void initExpressions(Live2D::IModel *model);
+    void initMotions(Live2D::IModel *model);
 
-    void initParameters(Model *model);
-    void initParts(Model *model);
-    void initDrawables(Model *model);
+    void initCdi(Live2D::IModel *model);
+
+    void initParameters(Live2D::IModel *model);
+    void initParts(Live2D::IModel *model);
+    void initDrawables(Live2D::IModel *model);
 
 private slots:
     void onTreeItemDoubleClicked(QTreeWidgetItem *item, int column);
@@ -36,7 +39,7 @@ private:
     bool hasCdi;
     QJsonObject cdi;
 
-    Model *model;
+    ModelHolder* holder;
     int selectedPartIndex;
 
     QTimer syncTimer;

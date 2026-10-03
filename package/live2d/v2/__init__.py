@@ -1,25 +1,32 @@
-from .core import Live2D, Live2DGLWrapper
+print("[v2] Pure Python impl, try faster: live2d.Model")
+
+from .core import Live2D
 from .core import log as __log
-from .framework import Live2DFramework
 from .lapp_define import MotionGroup, MotionPriority, HitArea
-from .lapp_model import LAppModel
-from .params import Parameter, StandardParams
-from .platform_manager import PlatformManager
+from .lapp_model import Model
 
 
-class Live2DLogLevels:
+def __getattr__(name):
+    if name == "Live2DGLWrapper":
+        from .core.live2d_gl_wrapper import Live2DGLWrapper
+        globals()[name] = Live2DGLWrapper
+        return Live2DGLWrapper
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+class LogLevels:
     LV_DEBUG: int = 0
-    LV_INFO: int = 0
-    LV_WARN: int = 0
-    LV_ERROR: int = 0
+    LV_INFO: int = 1
+    LV_WARN: int = 2
+    LV_ERROR: int = 3
 
 
 def init():
     Live2D.init()
-    Live2DFramework.setPlatformManager(PlatformManager())
 
 
 def clearBuffer(r=0.0, g=0.0, b=0.0, a=0.0):
+    from .core.live2d_gl_wrapper import Live2DGLWrapper
     Live2DGLWrapper.clearColor(r, g, b, a)
     Live2DGLWrapper.clear(Live2DGLWrapper.COLOR_BUFFER_BIT)
 
@@ -51,9 +58,10 @@ def dispose():
     pass
 
 
+LIVE2D_VARIANT = "v2"
 LIVE2D_VERSION = 2
 
-__all__ = ['LAppModel',
+__all__ = ['Model',
            'MotionPriority',
            'MotionGroup',
            "HitArea",

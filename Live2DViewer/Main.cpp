@@ -1,21 +1,33 @@
-﻿#include <QApplication>
-#include <QTranslator>
-#include <QLocale>
-#include <QLibraryInfo>
+﻿#include <GL/glew.h>
+#include <QApplication>
 #include <QDir>
+#include <QLibraryInfo>
+#include <QLocale>
+#include <QTranslator>
+
 
 #include "MainWindow.hpp"
 
-#include <LAppAllocator.hpp>
-#include <LAppPal.hpp>
 #include <CubismFramework.hpp>
+#include <V3/LAppAllocator.hpp>
+#include <V3/LAppPal.hpp>
+
 
 #ifdef _WIN32
 #include <Windows.h>
 #endif
 
-int main(int argc, char *argv[])
+#ifdef DEBUG_ENABLE_CALLSTACK
+#include <Debug.hpp>
+#endif
+
+using namespace Live2D::V3;
+
+int main(int argc, char* argv[])
 {
+#ifdef DEBUG_ENABLE_CALLSTACK
+    Live2D::Common::Debug::InstallCrashHandler();
+#endif
 
 #ifdef _WIN32
     SetConsoleOutputCP(CP_UTF8);
@@ -39,14 +51,14 @@ int main(int argc, char *argv[])
     // Set up translations
     QTranslator translator;
     QTranslator qtTranslator;
-    
+
     // Get system locale
     QString locale = QLocale::system().name();
-    
+
     // Load Qt's built-in translations
     qtTranslator.load("qt_" + locale, QLibraryInfo::location(QLibraryInfo::TranslationsPath));
     app.installTranslator(&qtTranslator);
-    
+
     // Load application translations
     QString translationPath = QApplication::applicationDirPath();
     if (translator.load(":/i18n/moe_" + locale, translationPath)) {
@@ -58,8 +70,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    QObject::connect(&app, &QApplication::aboutToQuit, []()
-                     { Csm::CubismFramework::Dispose(); });
+    QObject::connect(&app, &QApplication::aboutToQuit, []() { Csm::CubismFramework::Dispose(); });
 
     MainWindow w;
     w.show();

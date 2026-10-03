@@ -1,0 +1,33 @@
+#pragma once
+#include <memory>
+
+#include "ISerializable.hpp"
+#include <cstdint>
+#include <vector>
+
+namespace Live2D {
+namespace V2 {
+
+class ParamPivots;
+class ModelContext;
+
+class PivotManager final : public ISerializable {
+public:
+    PivotManager() = default;
+    ~PivotManager() override;
+
+    void read(class BinaryReader& br) override;
+
+    bool checkParamUpdated(ModelContext* modelContext);
+    int calcPivotValues(ModelContext* modelContext, bool& outRet);
+    void calcPivotIndices(std::vector<int16_t>& indexArray, std::vector<float>& tArray,
+                          int interpolationCount);
+
+    int getParamCount() const { return static_cast<int>(mParamPivotTable.size()); }
+
+private:
+    std::vector<std::unique_ptr<ParamPivots>> mParamPivotTable;
+};
+
+}   // namespace V2
+}   // namespace Live2D

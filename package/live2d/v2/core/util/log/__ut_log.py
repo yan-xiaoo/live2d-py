@@ -1,4 +1,4 @@
-﻿import time
+import time
 
 __enable = True
 
@@ -15,53 +15,55 @@ def isLogEnabled() -> bool:
 
 
 def setLogLevel(level: int) -> None:
+    """设置日志等级，兼容最低支持的 Python 3.8 语法。"""
     global __logLevel
     __logLevel = level
     if __logLevel == 0:
-        Debug("[Log] Level=DEBUG")
+        LOGD("[Log] Level=DEBUG")
     elif __logLevel == 1:
-        Info("[Log] Level=INFO")
+        LOGI("[Log] Level=INFO")
     elif __logLevel == 2:
-        Warn("[Log] Level=WARN")
+        LOGW("[Log] Level=WARN")
     elif __logLevel == 3:
-        Error("[Log] Level=ERROR")
+        LOGE("[Log] Level=ERROR")
+
 
 
 def getLogLevel() -> int:
-    return __logLevel 
+    return __logLevel
 
 
-def Debug(*args, **kwargs):
+def LOGD(*args, **kwargs):
     if __enable and 0 >= __logLevel:
         print(
-            time.strftime(f"[DEBUG]"),
+            time.strftime(f"[D] "),
             *args,
             **kwargs
         )
 
 
-def Info(*args, **kwargs):
+def LOGI(*args, **kwargs):
     if __enable and 1 >= __logLevel:
         print(
-            time.strftime("[INFO] "),
+            time.strftime("[I] "),
             *args,
             **kwargs
         )
 
 
-def Warn(*args, **kwargs):
+def LOGW(*args, **kwargs):
     if __enable and 2 >= __logLevel:
         print(
-            time.strftime(f"[WARN] "),
+            time.strftime(f"[W] "),
             *args,
             **kwargs
         )
 
 
-def Error(*args, **kwargs):
+def LOGE(*args, **kwargs):
     if __enable and 3 >= __logLevel:
         print(
-            time.strftime(f"[ERROR]"),
+            time.strftime(f"[E] "),
             *args,
             **kwargs
         )

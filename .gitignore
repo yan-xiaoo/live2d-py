@@ -1,10 +1,4 @@
 build
-CMakeCache.txt
-Makefile
-cmake_install.cmake
-**/CMakeCache.txt
-**/Makefile
-**/cmake_install.cmake
 
 live2d-desktop
 config.v2.json
@@ -12,7 +6,6 @@ config.v3.json
 !glew/build
 
 *.zip
-*.whl
 
 glew/doc
 
@@ -21,20 +14,11 @@ glew/doc
 **/__pycache__
 
 **/.idea
-**/CMakeFiles/**
-Live2D/Glad/
-Live2D/V2/Framework/
 
 **/*.mp4
 **/*.wav
 
 **/*.egg-info
-
-*.a
-*.so
-*.pyd
-*.dylib
-*.pdb
 
 dist
 
@@ -80,13 +64,32 @@ Live2D/Core
 csmsdk_temp
 
 .cache
-.env
-
-Live2D/V3/Core/*
-Live2D/V3/Framework/*
 
 .claude
 
 *.png
 !docs/*.png
-CubismSdkForWeb-5-r.4/*
+
+raw/
+
+examples/live2d
+# 本地构建、SDK 下载产物和旧版扩展
+.env
+*.whl
+*.a
+*.so
+*.pyd
+*.dylib
+**/CMakeCache.txt
+**/Makefile
+**/cmake_install.cmake
+**/CMakeFiles/
+/build-*/
+/Live2D/V3/Core/
+/Live2D/V3/Framework/
+/Live2D/V3/Main/
+/Wrapper/V2/
+/Wrapper/V3/
+/package/live2d/v2cpp/
+/package/live2d/v3/
+/CubismSdkForWeb-*/

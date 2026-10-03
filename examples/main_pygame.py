@@ -12,21 +12,22 @@ import resources
 import pygame
 from pygame.locals import *
 
-import live2d.v3 as live2d
-# import live2d.v2 as live2d
-# import live2d.v2cpp as live2d
+import live2d
+from live2d import StandardParamsV2, StandardParamsV3
 
-if live2d.LIVE2D_VERSION == 3:
-    from live2d.v3 import StandardParams
+LIVE2D_VERSION = 3
+
+if LIVE2D_VERSION == 3:
+    StandardParams = StandardParamsV3
 else:
-    from live2d.v2 import StandardParams
+    StandardParams = StandardParamsV2
 from live2d.utils import log
 
 
 from live2d.utils.lipsync import WavHandler
 
 live2d.enableLog(True)
-live2d.setLogLevel(live2d.Live2DLogLevels.LV_DEBUG)
+live2d.setLogLevel(live2d.LogLevels.LV_DEBUG)
 
 
 def main():
@@ -40,10 +41,10 @@ def main():
 
     live2d.glInit()
 
-    model = live2d.LAppModel()
+    model = live2d.Model()
 
 
-    if live2d.LIVE2D_VERSION == 3:
+    if LIVE2D_VERSION == 3:
         model.LoadModelJson(
             # os.path.join(resources.RESOURCES_DIRECTORY, "v3/liveroid/liveroiD_A-Y01/liveroiD_A-Y01.model3.json")
             # os.path.join(resources.RESOURCES_DIRECTORY, "v3/Mao/Mao.model3.json")
@@ -72,9 +73,9 @@ def main():
     scale: float = 1.0
 
     # 关闭自动眨眼
-    model.SetAutoBlinkEnable(False)
+    model.SetAutoBlink(False)
     # 关闭自动呼吸
-    model.SetAutoBreathEnable(False)
+    model.SetAutoBreath(False)
 
     wavHandler = WavHandler()
     lipSyncN = 3
@@ -82,31 +83,32 @@ def main():
     audioPlayed = False
 
     def on_start_motion_callback(group: str, no: int):
-        log.Info("start motion: [%s_%d]" % (group, no))
+        log.LOGI("start motion: [%s_%d]" % (group, no))
         # play your voice here
         # audioPath = os.path.join(resources.CURRENT_DIRECTORY, "path to wav file")
         # pygame.mixer.music.load(audioPath)
         # pygame.mixer.music.play()
-        # log.Info("start lipSync")
+        # log.LOGI("start lipSync")
         # wavHandler.Start(audioPath)
 
     def on_finish_motion_callback(group: str, no: int):
-        log.Info("motion finished")
+        log.LOGI("motion finished")
 
     # 获取全部可用参数
-    for i in range(model.GetParameterCount()):
-        param = model.GetParameter(i)
-        log.Debug(
-            param.id, param.type, param.value, param.max, param.min, param.default
+    paramIds = model.GetParamIds()
+    for i in range(model.GetParamCount()):
+        log.LOGD(
+            paramIds[i], 0, model.GetParamValueByIndex(i), model.GetParamMaxByIndex(i),
+            model.GetParamMinByIndex(i), model.GetParamDefaultByIndex(i)
         )
 
     # 设置 part 透明度
-    # log.Debug(f"Part Count: {model.GetPartCount()}")
+    # log.LOGD(f"Part Count: {model.GetPartCount()}")
     partIds = model.GetPartIds()
     print(len(partIds))
     print(partIds)
-    # log.Debug(f"Part Ids: {partIds}")
-    # log.Debug(f"Part Id for index 2: {model.GetPartId(2)}")
+    # log.LOGD(f"Part Ids: {partIds}")
+    # log.LOGD(f"Part Id for index 2: {model.GetPartId(2)}")
     # model.SetPartOpacity(partIds.index("PartHairBack"), 0.5)
 
     currentTopClickedPartId = None
@@ -151,7 +153,7 @@ def main():
             if event.type == pygame.MOUSEBUTTONDOWN:
                 x, y = pygame.mouse.get_pos()
                 # currentTopClickedPartId = getHitFeedback(x, y)
-                # log.Info(f"Clicked Part: {currentTopClickedPartId}")
+                # log.LOGI(f"Clicked Part: {currentTopClickedPartId}")
                 # model.StartRandomMotion(group="TapBody", onFinishMotionHandler=lambda : print("motion finished"), onStartMotionHandler=lambda group, no: print(f"started motion: {group} {no}"))
                 model.SetRandomExpression()
                 model.StartRandomMotion(priority=3, onFinishMotionHandler=on_finish_motion_callback)
@@ -210,7 +212,7 @@ def main():
 
         if wavHandler.Update():
             # 利用 wav 响度更新 嘴部张合
-            model.SetParameterValue(
+            model.SetParamById(
                 StandardParams.ParamMouthOpenY, wavHandler.GetRms() * lipSyncN
             )
 

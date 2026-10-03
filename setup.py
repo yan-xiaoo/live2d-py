@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 # ======================== LEGAL DISCLAIMER (CORE COMPLIANCE) ========================
 DISCLAIMER = """
 ===========================================================================
@@ -5,17 +7,17 @@ IMPORTANT LEGAL DISCLAIMER
 ===========================================================================
 1. Copyright Ownership: Live2D Cubism Core library is the exclusive property of Live2D Inc.
    All intellectual property rights (including copyright) belong to Live2D Inc.
-   
-2. Distribution Restriction: Under Live2D's official Terms of Service, third parties are 
-   prohibited from distributing/sharing Cubism Core files. This script only provides an 
+
+2. Distribution Restriction: Under Live2D's official Terms of Service, third parties are
+   prohibited from distributing/sharing Cubism Core files. This script only provides an
    "auto-guided download" function and does NOT store or forward any Core files.
-   
-3. Compliance Requirement: You must adhere to the Live2D Cubism SDK End User License 
-   Agreement (EULA). Core library usage is restricted to legal personal/commercial projects 
+
+3. Compliance Requirement: You must adhere to the Live2D Cubism SDK End User License
+   Agreement (EULA). Core library usage is restricted to legal personal/commercial projects
    only—reverse engineering or secondary distribution of Core files is strictly forbidden.
-   
-4. Liability Waiver: This script is provided as a convenience tool only. It bears no 
-   responsibility for the integrity or compatibility of Core files. Any compliance issues 
+
+4. Liability Waiver: This script is provided as a convenience tool only. It bears no
+   responsibility for the integrity or compatibility of Core files. Any compliance issues
    arising from the use of this script are the sole responsibility of the user.
 
 OFFICIAL ACQUISITION CHANNELS (RECOMMENDED):
@@ -30,7 +32,6 @@ import platform
 import re
 import subprocess
 import sys
-
 
 DEFAULT_MACOS_DEPLOYMENT_TARGET = "14.0"
 DEFAULT_MACOS_ARCHITECTURES = ("arm64", "x86_64")
@@ -126,6 +127,7 @@ def macos_wheel_plat_name() -> str:
         platform_arch,
     )
 
+
 from setuptools import setup, find_packages, Extension, Command
 from setuptools.command.build_ext import build_ext
 from setuptools.command.install import install
@@ -137,9 +139,11 @@ with open(os.path.join(os.path.dirname(__file__), "package", "live2d", "__init__
     for _line in _f:
         if _line.startswith("__version__"):
             VERSION = _line.split('"')[1]
-            break
+        elif _line.startswith("__csm_version__"):
+            CSM_VERSION = _line.split('"')[1]
+
 CUBISM_SDK_DISTRIBUTION = (
-    "https://cubism.live2d.com/sdk-native/bin/CubismSdkForNative-5-r.4.1.zip"
+    f"https://cubism.live2d.com/sdk-native/bin/CubismSdkForNative-{CSM_VERSION}.zip"
 )
 
 NAME = "live2d-py"
@@ -334,14 +338,19 @@ CORE_LIB_PATHS = [
     os.path.join(os.path.dirname(__file__), "Live2D", "V3", "Core"),
 ]
 
-def is_sdk_present():
-    """Check if Cubism SDK is already present (downloaded or vendored)."""
-    for p in CORE_LIB_PATHS:
-        if os.path.isdir(p) and os.listdir(p):
-            return True
-    return False
+def is_sdk_present() -> bool:
+    """只复用带 R5 Core API 和外置着色器的 SDK，避免误用旧缓存。"""
+    header = os.path.join(DST_DIR, "Core", "include", "Live2DCubismCore.h")
+    shaders = os.path.join(DST_DIR, "Framework", "src", "Rendering", "OpenGL", "Shaders", "Standard")
+    try:
+        with open(header, encoding="utf-8-sig") as source:
+            return "csmGetDrawableBlendModes" in source.read() and os.path.isdir(shaders)
+    except OSError:
+        return False
 
-def run_cmake():
+
+def run_cmake() -> None:
+    """构建统一扩展并保留最低 ABI、部署版本与双架构配置。"""
     global cmake_built
     if cmake_built:
         return
@@ -354,8 +363,8 @@ def run_cmake():
     else:
         print("[cmake] Cubism SDK already present, skipping download.")
 
-    cmake_args = ["-DBUILD_V2CPP=ON"]
-    build_args = ["--config", "Release", "--target", "Live2DV2Wrapper", "--target", "Live2DWrapper"]
+    cmake_args = ["-DFORMAT_UTIL=OFF"]
+    build_args = ["--config", "Release", "--target", "Live2DWrapper"]
 
     if platform.system() == "Windows":
         if platform.python_compiler().find("64 bit") > 0:
@@ -379,7 +388,7 @@ def run_cmake():
                 + os.environ.get("CMAKE_OSX_ARCHITECTURES", ";".join(MACOS_ARCHITECTURES))
             ]
     source_folder = os.path.dirname(os.path.abspath(__file__))
-    build_folder = os.path.join(source_folder, "build")
+    build_folder = os.path.join(source_folder, "build-unified")
 
     if not os.path.exists(build_folder):
         os.makedirs(build_folder)
@@ -420,19 +429,23 @@ class CMakeBuild(build_ext):
 
 
 class BuildWheel(bdist_wheel):
-    def initialize_options(self):
+    """生成 cp38-abi3 wheel，并保持 macOS 14 universal2 标签。"""
+    def initialize_options(self) -> None:
+        """初始化平台标签。"""
         bdist_wheel.initialize_options(self)
         if sys.platform == "darwin":
             self.plat_name = macos_wheel_plat_name()
 
-    def finalize_options(self):
+    def finalize_options(self) -> None:
+        """确认最低 ABI 和平台标签。"""
         if not self.py_limited_api:
             self.py_limited_api = PY_LIMITED_API_TAG
         if sys.platform == "darwin" and not self.plat_name:
             self.plat_name = macos_wheel_plat_name()
         bdist_wheel.finalize_options(self)
 
-    def run(self):
+    def run(self) -> None:
+        """先构建原生扩展再生成 wheel。"""
         run_cmake()
         bdist_wheel.run(self)
 
@@ -457,7 +470,7 @@ class Download(Command):
     def run(self):
         execute_download(CUBISM_SDK_DISTRIBUTION)
         print("Download completed successfully")
-        
+
 
 setup(
     name=NAME,
@@ -472,8 +485,13 @@ setup(
     ext_modules=[FakeExtension("LAppModelWrapper", ".")],
     cmdclass={"build_ext": CMakeBuild, "bdist_wheel": BuildWheel, "install": Install, "download": Download},
     packages=find_packages(where="package"),
-    package_data={"": ["**/*.pyd", "**/*.so", "**/*.pyi", "**/*.py"]},
+    include_package_data=False,
+    package_data={"live2d": ["_live2d.pyd", "_live2d.so", "_live2d.pyi",
+                              "FrameworkShaders/*.frag", "FrameworkShaders/*.vert"]},
     package_dir={"": "package"},
     keywords=["Live2D", "Cubism Live2D", "Cubism SDK", "Cubism SDK for Python"],
     python_requires=REQUIRES_PYTHON,
+    # The extension modules link python3.dll (stable ABI, untagged .pyd names),
+    # so one cp38-abi3 wheel per platform covers every Python >= 3.8.
+    options={"bdist_wheel": {"py_limited_api": PY_LIMITED_API_TAG}},
 )

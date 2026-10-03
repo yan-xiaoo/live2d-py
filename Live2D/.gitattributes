@@ -1,0 +1,7 @@
+# 强制所有文件使用 LF 换行符
+* text=auto eol=lf
+# 保留源文件文本差异，便于审阅下游补丁
+*.hpp diff
+*.cpp diff
+*.cmake diff
+*.txt diff

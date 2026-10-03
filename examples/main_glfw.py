@@ -1,22 +1,69 @@
 import resources
 import math
+import os
 import os.path
+import sys
 import time
 
-import glfw
-import live2d.v3 as live2d
-# import live2d.v2 as live2d
-# import live2d.v2cpp as live2d
+if sys.platform.startswith("linux") and not os.environ.get("PYOPENGL_PLATFORM"):
+    # glfw 创建的是 GLX 上下文；PyOpenGL 在本机默认选 EGL 会导致 context 跟踪失效
+    os.environ["PYOPENGL_PLATFORM"] = "glx"
 
-if live2d.LIVE2D_VERSION == 3:
-    from live2d.v3 import StandardParams
-else:
-    from live2d.v2 import StandardParams
+import glfw
+import live2d
+
 from live2d.utils import log
 from live2d.utils.lipsync import WavHandler
 
+import OpenGL.GL as GL
+
 live2d.enableLog(True)
-live2d.setLogLevel(live2d.Live2DLogLevels.LV_DEBUG)
+live2d.setLogLevel(live2d.LogLevels.LV_DEBUG)
+
+LOAD_FROM_JSON = True
+LIVE2D_VERSION = 2
+
+if LIVE2D_VERSION == 2:
+    from live2d import StandardParamsV2 as StandardParams
+else:
+    from live2d import StandardParamsV3 as StandardParams
+
+
+def load_from_json_string():
+    from live2d.utils.model_json import Motion, ModelJson
+    m = ModelJson(version=3)
+    m.model = "Haru.moc3"
+    m.textures = [
+        "Haru.2048/texture_00.png",
+        "Haru.2048/texture_01.png",
+    ]
+    m.physics = "Haru.physics3.json"
+    m.pose = "Haru.pose3.json"
+    m.display_info = "Haru.cdi3.json"
+    m.user_data = "Haru.userdata3.json"
+
+    for i in range(1, 3):
+        m.add_expression(f"F{i:02d}", f"expressions/F{i:02d}.exp3.json")
+
+    m.add_motion("Idle", Motion("motions/haru_g_idle.motion3.json", 0.5, 0.5))
+    m.add_motion(
+        "TapBody",
+        Motion(
+            "motions/haru_g_m26.motion3.json",
+            0.5,
+            0.5,
+            sound="sounds/haru_talk_13.wav",
+        ),
+    )
+
+    m.add_group("Parameter", "EyeBlink", ["ParamEyeLOpen", "ParamEyeROpen"])
+    m.add_group("Parameter", "LipSync", ["ParamMouthOpenY"])
+    m.add_hit_area("HitArea", "Head")
+    m.add_hit_area("HitArea2", "Body")
+
+    model = live2d.Model()
+    model.LoadFromJsonString(m.to_string(), root_path=resources.RESOURCES_DIRECTORY + "/v3/Haru", create_renderer=False)
+    return model
 
 
 def main():
@@ -33,33 +80,41 @@ def main():
     live2d.init()
     live2d.glInit()
 
-    model = live2d.LAppModel()
-    if live2d.LIVE2D_VERSION == 3:
-        model.LoadModelJson(os.path.join(resources.RESOURCES_DIRECTORY, "v3/llny/llny.model3.json"))
-    else:
-        model.LoadModelJson(os.path.join(resources.RESOURCES_DIRECTORY, "v2/kasumi2/kasumi2.model.json"))
+    model = None
+    if LOAD_FROM_JSON:
+        model = load_from_json_string()
+    elif LIVE2D_VERSION == 3:
+        model = live2d.Model()
+        # model.LoadModelJson(os.path.join(resources.RESOURCES_DIRECTORY, "v3/llny/llny.model3.json"))
+        model.LoadModelJson(os.path.join(resources.RESOURCES_DIRECTORY, "v3/haru/haru.model3.json"), create_renderer=False)
+    elif LIVE2D_VERSION == 2:
+        model = live2d.Model()
+        model.LoadModelJson(os.path.join(resources.RESOURCES_DIRECTORY, "v2/haru/haru.model.json"),
+                            create_renderer=False)  # Load model without creating renderer
+    model.CreateRenderer()
 
     model.Resize(*display)
 
     # Disable auto effects
-    model.SetAutoBlinkEnable(False)
-    model.SetAutoBreathEnable(False)
+    model.SetAutoBlink(False)
+    model.SetAutoBreath(False)
 
     wavHandler = WavHandler()
     lipSyncN = 3
     audioPlayed = False
 
     def on_start_motion_callback(group, no):
-        log.Info("start motion: [%s_%d]" % (group, no))
+        log.LOGI("start motion: [%s_%d]" % (group, no))
 
     def on_finish_motion_callback(group, no):
-        log.Info("motion finished")
+        log.LOGI("motion finished")
 
     # Print all parameters
-    print(f"Parameter Count: {model.GetParameterCount()}")
-    for i in range(model.GetParameterCount()):
-        param = model.GetParameter(i)
-        log.Debug(param.id, param.type, param.value, param.max, param.min, param.default)
+    print(f"Parameter Count: {model.GetParamCount()}")
+    paramIds = model.GetParamIds()
+    for i in range(model.GetParamCount()):
+        log.LOGD(paramIds[i], 0, model.GetParamValueByIndex(i), model.GetParamMaxByIndex(i),
+                 model.GetParamMinByIndex(i), model.GetParamDefaultByIndex(i))
 
     # Print part IDs
     partIds = model.GetPartIds()
@@ -108,7 +163,7 @@ def main():
         elif key == glfw.KEY_R:
             model.StopAllMotions()
             model.ResetPose()
-            model.ResetParameters()
+            model.ResetAllParameters()
         elif key == glfw.KEY_E:
             model.ResetExpression()
     glfw.set_key_callback(window, on_key)
@@ -119,7 +174,7 @@ def main():
             x, y = glfw.get_cursor_pos(window)
             currentTopClickedPartId = getHitFeedback(x, y)
             model.SetRandomExpression()
-            model.StartRandomMotion(priority=3, onFinishMotionHandler=on_finish_motion_callback)
+            model.StartRandomMotion(priority=3, onFinish=on_finish_motion_callback)
     glfw.set_mouse_button_callback(window, on_mouse_button)
 
     def on_cursor_pos(window, x, y):
@@ -127,6 +182,11 @@ def main():
         model.Drag(x, y)
         currentTopClickedPartId = getHitFeedback(x, y)
     glfw.set_cursor_pos_callback(window, on_cursor_pos)
+
+    def on_resize(window, width, height):
+        GL.glViewport(0, 0, width, height)
+        model.Resize(width, height)
+    glfw.set_window_size_callback(window, on_resize)
 
     glfw.swap_interval(0)
 
@@ -140,6 +200,9 @@ def main():
     fps_timer = last_time
 
     glfw.swap_interval(1)
+
+    model.DestroyRenderer()
+    model.CreateRenderer()
 
     while not glfw.window_should_close(window):
         glfw.poll_events()
@@ -157,7 +220,7 @@ def main():
             model.SetPartMultiplyColor(pidx, 0.0, 0.0, 1.0, 0.9)
 
         if wavHandler.Update():
-            model.SetParameterValue(StandardParams.ParamMouthOpenY, wavHandler.GetRms() * lipSyncN)
+            model.SetParamById(StandardParams.ParamMouthOpenY, wavHandler.GetRms() * lipSyncN)
 
         if not audioPlayed:
             model.StartMotion("", 0, live2d.MotionPriority.FORCE,
@@ -167,7 +230,17 @@ def main():
         model.SetOffset(dx, dy)
         model.SetScale(scale)
         live2d.clearBuffer(1.0, 0.0, 0.0, 0.0)
+
+        GL.glPushAttrib(GL.GL_CURRENT_BIT | GL.GL_ENABLE_BIT | GL.GL_POLYGON_BIT | GL.GL_COLOR_BUFFER_BIT)
+        GL.glUseProgram(0)
+        GL.glDisable(GL.GL_DEPTH_TEST)
+        GL.glDisable(GL.GL_CULL_FACE)
+        GL.glEnable(GL.GL_BLEND)
+        GL.glBlendFuncSeparate(GL.GL_ONE, GL.GL_ONE_MINUS_SRC_ALPHA, GL.GL_ONE, GL.GL_ONE_MINUS_SRC_ALPHA)
+
         model.Draw()
+        GL.glPopAttrib()
+
         glfw.swap_buffers(window)
 
         fps_frames += 1
@@ -180,7 +253,6 @@ def main():
 
     # if crashes when exiting, try to explicitly destroy the renderer before terminating glfw
     # this is a workaround for a known issue in some environments where the OpenGL context is not properly released
-    model.DestroyRenderer()
     glfw.terminate()
 
 

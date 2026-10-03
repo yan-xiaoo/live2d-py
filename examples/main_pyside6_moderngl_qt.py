@@ -8,12 +8,11 @@ from PySide6.QtWidgets import QApplication
 from PySide6.QtOpenGLWidgets import QOpenGLWidget
 import resources
 
-# import live2d.v3 as live2d
-# import live2d.v2 as live2d
-import live2d.v2cpp as live2d
+import live2d
 import os
 import OpenGL.GL as GL
 
+LIVE2D_VERSION = 3
 
 from typing import Optional
 
@@ -72,7 +71,7 @@ class GLWidget(QOpenGLWidget):
         
         # 初始化变量
         self.ctx: Optional[moderngl.Context] = None
-        self.model: Optional[live2d.LAppModel] = None
+        self.model: Optional[live2d.Model] = None
         self.triangle: Optional[DefaultRenderer] = None
         
         # 设置窗口尺寸
@@ -84,11 +83,11 @@ class GLWidget(QOpenGLWidget):
 
         live2d.glInit()
 
-        self.model = live2d.LAppModel()
+        self.model = live2d.Model()
         self.model.LoadModelJson(
             os.path.join(
                 resources.RESOURCES_DIRECTORY, 
-                "v3/llny/llny.model3.json" if live2d.LIVE2D_VERSION == 3
+                "v3/llny/llny.model3.json" if LIVE2D_VERSION == 3
                          else "v2/kasumi2/kasumi2.model.json"
                          ))
         

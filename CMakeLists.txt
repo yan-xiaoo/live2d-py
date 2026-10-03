@@ -3,24 +3,19 @@ cmake_minimum_required(VERSION 3.26)
 
 project(LAppModelWrapper)
 
-# ---- Platform settings ----
 if(APPLE)
   set(CMAKE_CXX_STANDARD 11)
   set(CMAKE_CXX_STANDARD_REQUIRED ON)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
   if(NOT CMAKE_OSX_ARCHITECTURES)
-    if(CMAKE_SYSTEM_PROCESSOR MATCHES "arm64")
-      set(CMAKE_OSX_ARCHITECTURES "arm64")
-    else()
-      set(CMAKE_OSX_ARCHITECTURES "x86_64")
-    endif()
+    set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "macOS architectures")
   endif()
 endif()
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
   set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Zi")
   set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /Zi")
-  add_compile_options("/utf-8" "/wd4018" "/wd4244" "/wd4996")
+  add_compile_options("/utf-8" "/wd4018" "/wd4244" "/wd4996" "/we4150")
   add_link_options("/NODEFAULTLIB:LIBCMT")
   if(CMAKE_CL_64)
     add_link_options("/BASE:0x800000000")
@@ -28,31 +23,40 @@ if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
   execute_process(COMMAND chcp 65001)
 endif()
 
-# ---- Shared: Glad (OpenGL loader, used by both v2 and v3) ----
-if(NOT CMAKE_SYSTEM_NAME MATCHES "Android")
-  add_subdirectory(Live2D/Glad ${CMAKE_CURRENT_BINARY_DIR}/Live2D/Glad)
-  add_library(Live2D::Glad ALIAS glad)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
+# ---- import config ----
+include(cmake/Config.cmake)
+include(cmake/VersionCheck.cmake)
+
+# ---- Cubism Native SDK ----
+if (DEBUG_ENABLE_ASAN)
+  message("[Asan] on")
+  add_compile_options(-fsanitize=address -fno-omit-frame-pointer -g -O1)
+  add_link_options(-fsanitize=address -shared-libasan)
 endif()
 
-# ---- Shared Wrapper config (Python3, output naming) ----
-include(cmake/Wrapper.cmake)
+if (DEBUG_ENABLE_CALLSTACK)
+  message("[CallStack] on")
+  add_compile_definitions(DEBUG_ENABLE_CALLSTACK)
+  add_compile_options("/Od" "/Ob0")
+endif()
 
-# ---- V3: Cubism Native SDK ----
-include(cmake/PatchCubismShader.cmake)
-include(Live2D/V3/cmake/Live2D.cmake)
+add_subdirectory(Live2D)
 
-# set(VIEWER 1)
-# ---- V2: Live2D Cubism 2.x C++ port ----
-option(BUILD_V2CPP "Build v2cpp C++ port" ON)
-
-if(DEFINED VIEWER)
-  message("Build for Viewer")
+if(VIEWER)
+  message("[Target]: Viewer")
   include(cmake/Live2DViewer.cmake)
 else()
-  message("Build for Wrapper")
-  add_subdirectory(Wrapper/V3 ${CMAKE_CURRENT_BINARY_DIR}/Wrapper/V3)
-  if(BUILD_V2CPP)
-    add_subdirectory(Live2D/V2 ${CMAKE_CURRENT_BINARY_DIR}/Live2D/V2)
-    add_subdirectory(Wrapper/V2 ${CMAKE_CURRENT_BINARY_DIR}/Wrapper/V2)
-  endif()
+  message("[Target]: Wrapper")
+  # ---- Shared Wrapper config (Python3, output naming) ----
+  include(cmake/Wrapper.cmake)
+
+  add_subdirectory(Wrapper ${CMAKE_CURRENT_BINARY_DIR}/Wrapper/)
 endif()
+
+# testing
+add_subdirectory(tests/v2 ${CMAKE_CURRENT_BINARY_DIR}/tests/v2)
+
+# --format--
+include(cmake/Format.cmake)

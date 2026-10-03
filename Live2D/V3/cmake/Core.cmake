@@ -21,7 +21,7 @@ elseif(CMAKE_SYSTEM_NAME MATCHES "Windows")
   endif()
 elseif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
   set(CSM_TARGET CSM_TARGET_MAC_GL)
-  set(CORE_LIB_ROOT ${LIVE2D_ROOT}/Core/lib)
+  set(CORE_LIB_ROOT ${LIVE2D_ROOT}/V3/Core/lib)
   if("arm64" IN_LIST CMAKE_OSX_ARCHITECTURES AND "x86_64" IN_LIST CMAKE_OSX_ARCHITECTURES)
     message("Target: Darwin universal2")
     find_program(LIVE2D_LIPO_EXECUTABLE NAMES lipo REQUIRED)
@@ -54,7 +54,7 @@ elseif(CMAKE_SYSTEM_NAME MATCHES "Android")
 endif()
 
 if(NOT CORE_LIB_PATH)
-  set(CORE_LIB_PATH ${LIVE2D_ROOT}/Core/lib/${CORE_LIB_NAME})
+  set(CORE_LIB_PATH ${LIVE2D_ROOT}/V3/Core/lib/${CORE_LIB_NAME})
 endif()
 
 message("Live2D Core: ${CORE_LIB_PATH}")
@@ -64,7 +64,7 @@ set_target_properties(Live2DCubismCore
     IMPORTED_LOCATION
     ${CORE_LIB_PATH}
     INTERFACE_INCLUDE_DIRECTORIES
-      ${LIVE2D_ROOT}/Core/include
+      ${LIVE2D_ROOT}/V3/Core/include
 )
 target_compile_definitions(Live2DCubismCore
   INTERFACE

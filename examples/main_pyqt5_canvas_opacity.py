@@ -7,20 +7,18 @@ from live2d.utils.canvas import Canvas
 """
 Example of controlling model opacity using live2d.utils.canvas.Canvas
 """
-import live2d.v3 as live2d
-# import live2d.v2 as live2d
-# import live2d.v2cpp as live2d
+import live2d
 import math
 import os
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QOpenGLWidget
 
-
+LIVE2D_VERSION = 3
 
 class Live2DCanvas(QOpenGLWidget):
     def __init__(self):
         super().__init__()
-        self.model: None | live2d.LAppModel = None
+        self.model: None | live2d.Model = None
 
         # tool for controlling model opacity
         self.canvas: None | Canvas = None
@@ -32,8 +30,8 @@ class Live2DCanvas(QOpenGLWidget):
 
     def initializeGL(self):
         live2d.glInit()
-        self.model = live2d.LAppModel()
-        if live2d.LIVE2D_VERSION == 3:
+        self.model = live2d.Model()
+        if LIVE2D_VERSION == 3:
             self.model.LoadModelJson(os.path.join(resources.RESOURCES_DIRECTORY, "v3", "llny/llny.model3.json"))
         else:
             self.model.LoadModelJson(os.path.join(resources.RESOURCES_DIRECTORY, "v2", "kasumi2/kasumi2.model.json"))

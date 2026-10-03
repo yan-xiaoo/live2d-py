@@ -13,10 +13,10 @@
     <img title="Live2D Viewer Distro" src="https://github.com/EasyLive2D/live2d-py/actions/workflows/build-live2dviewer.yml/badge.svg">
     <br>
     <img title="Release Version" src="https://img.shields.io/github/v/release/EasyLive2D/live2d-py" alt="Docker Build Version" style="margin: 0 10px;">
-    <img title="Python Version" src="https://img.shields.io/badge/python-3.11+-blue" alt="Python Version" style="margin: 0 10px;">
+    <img title="Python Version" src="https://img.shields.io/badge/python-3.8+-blue" alt="Python Version" style="margin: 0 10px;">
     <img title="CMake" src="https://img.shields.io/badge/CMake-3.26+-orange" alt="CMake" style="margin: 0 10px;">
     <img title="C++" src="https://img.shields.io/badge/C%2B%2B-17-yellow" alt="C++17" style="margin: 0 10px;">
-    <img title="CsmSDK" src="https://img.shields.io/badge/CsmSDK-5_r4-orange" alt="CsmSDK" style="margin: 0 10px;">
+    <img title="CsmSDK" src="https://img.shields.io/badge/CsmSDK-5--r.5-orange" alt="CsmSDK" style="margin: 0 10px;">
 </p>
 
 [中文](./README.md)
@@ -54,11 +54,9 @@ Theoretically compatible with all UI libraries that can use OpenGL for rendering
 
 | `live2d-py`  | Supported Models       | Implementation            |
 |--------------|----------------------|---------------------------|
-| `live2d.v2`  | Cubism 2.1 and earlier | Pure Python               |
-| `live2d.v2cpp` | Cubism 2.1 and earlier | C++ port (high performance) |
-| `live2d.v3`  | Cubism 3.0 and later   | Python C Extension wrapper |
+| `live2d.v2.Model`  | Cubism 2.1 and earlier | Pure Python               |
+| `live2d.Model` | Cubism 2.1 and earlier/Cubism 3.0 and later | C++ port (Cubism 2.X WebSdk)/Python C Extension wrapper(CubismNativeSdk) |
 
-**Use `live2d.v2cpp` instead of `live2d.v2` for better performance.** The API is fully compatible — just replace `import live2d.v2 as live2d` with `import live2d.v2cpp as live2d`.
 
 ### Python Versions and Platforms
 
@@ -68,11 +66,15 @@ Theoretically compatible with all UI libraries that can use OpenGL for rendering
 
 :construction:, :x:: errors or compatibility issues need to be solved when building distributions
 
-| Platform | Python | `live2d.v2` | `live2d.v2cpp` | `live2d.v3` | PyPI |
+| Platform | Python | `live2d.v2` | `live2d.Model` V2 | `live2d.Model` V3 | PyPI |
 |----------|--------|-------------|----------------|-------------|------|
-| macOS arm64 | `>=3.11` |:white_check_mark:|:white_check_mark:|:white_check_mark:|:white_check_mark:|
-| Windows x64 | `>=3.11` |:white_check_mark:|:white_check_mark:|:white_check_mark:|:white_check_mark:|
-| Linux x64 | `>=3.11` |:white_check_mark:|:white_check_mark:|:white_check_mark:|:x:|
+| macOS arm64 | `>=3.8` |:white_check_mark:|:white_check_mark:|:white_check_mark:|:white_check_mark:|
+| Windows x64 | `>=3.8` |:white_check_mark:|:white_check_mark:|:white_check_mark:|:white_check_mark:|
+| Linux x64 | `>=3.8` |:white_check_mark:|:white_check_mark:|:white_check_mark:|:white_check_mark:|
+
+The D_sakiko build targets macOS 14 and universal2. The official 5-r.5 Core archive
+contains objects marked macOS 15.7; actual macOS 14 runtime validation is required
+before release. See the downstream notes in [README.md](./README.md).
 
 **Notes**:
 * **Cubism 2.X models**: File formats include `XXX.moc`, `XXX.model.json`, `XXX.mtn`.
@@ -172,6 +174,8 @@ Special thanks to the following repos and their contributors:
 [D2Evil](https://github.com/UlyssesWu/D2Evil) (`moc` file exploration)
 
 [facial-landmarks-for-cubism](https://github.com/adrianiainlam/facial-landmarks-for-cubism) （facerig）
+
+[nlohmann/json](https://github.com/nlohmann/json) (v2cpp)
 
 Live2D sources:
 

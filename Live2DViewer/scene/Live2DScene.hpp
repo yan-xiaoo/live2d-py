@@ -1,20 +1,30 @@
 #pragma once
-#include <Model.hpp>
-#include <QOpenGLWidget>
+// make sure OpenGL header is included first by glew 
+#include <GL/glew.h>
+#include <IModel.hpp>
+
+#include <QMenu>
 #include <QOpenGLFunctions>
 #include <QOpenGLShaderProgram>
-#include <QMenu>
+#include <QOpenGLWidget>
+#include <optional>
 
 
-struct ParamValue
-{
+using namespace Live2D;
+
+
+struct ParamValue {
     int index;
     float value;
 };
 
+// 统一模型接口: V2/V3 模型都通过 IModel 访问（版本用 IModel::IsV2()/IsV3()）
+struct ModelHolder {
+    IModel* model = nullptr;
+};
 
-class Live2DScene : public QOpenGLWidget, protected QOpenGLFunctions
-{
+
+class Live2DScene : public QOpenGLWidget, protected QOpenGLFunctions {
     Q_OBJECT
 
 signals:
@@ -27,30 +37,31 @@ public slots:
     void setAutoPhysics(bool value);
 
 protected:
-    void timerEvent(QTimerEvent *event) override;
+    void timerEvent(QTimerEvent* event) override;
     void initializeGL() override;
     void paintGL() override;
     void resizeGL(int w, int h) override;
 
-    void mouseMoveEvent(QMouseEvent *event) override;
-    void mousePressEvent(QMouseEvent *event) override;
-    void mouseReleaseEvent(QMouseEvent *event) override;
+    void mouseMoveEvent(QMouseEvent* event) override;
+    void mousePressEvent(QMouseEvent* event) override;
+    void mouseReleaseEvent(QMouseEvent* event) override;
 
-    void keyPressEvent(QKeyEvent *event) override;
+    void keyPressEvent(QKeyEvent* event) override;
+
 public:
-    Live2DScene(QWidget *parent = nullptr);
+    Live2DScene(QWidget* parent = nullptr);
     ~Live2DScene();
 
     void LoadModel(const QString& filePath);
 
-    Model *GetModel();
+    ModelHolder& GetModel();
 
     QVector<ParamValue>* GetParamValues();
 
     void selectDrawable(int index);
 
 private:
-    Model *model;
+    ModelHolder holder;
 
     long long lastUpdateTime;
 
@@ -60,7 +71,7 @@ private:
     bool autoBreath;
     bool autoPhysics;
 
-    QOpenGLShaderProgram *program;
+    QOpenGLShaderProgram* program;
     GLuint vbo;
     int selectedDrawableIndex;
 

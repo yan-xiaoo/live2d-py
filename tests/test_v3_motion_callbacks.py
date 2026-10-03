@@ -12,7 +12,7 @@ import unittest
 from unittest.mock import patch
 import weakref
 
-import live2d.v3 as live2d
+import live2d
 
 
 class Callback:
@@ -58,7 +58,7 @@ class MotionCallbackTest(unittest.TestCase):
     def setUp(self) -> None:
         """每例使用独立的原生模型和回调事件列表。"""
         self.model = live2d.Model()
-        self.model.LoadModelJson(str(self.folder / "model.model3.json"))
+        self.model.LoadModelJson(str(self.folder / "model.model3.json"), create_renderer=False)
         self.events = []
         self.load_motion("probe")
 
@@ -262,7 +262,7 @@ class MotionCallbackTest(unittest.TestCase):
         self.model.UpdateMotion(0.01)
         self.model.UpdateMotion(0.125)
         # Haru 的首个参数是 ParamAngleX；曲线从 0 到 10 线性变化。
-        self.assertAlmostEqual(self.model.GetParameterValue(0), 5.0, places=4)
+        self.assertAlmostEqual(self.model.GetParamValueByIndex(0), 5.0, places=4)
 
     def test_cancel_suppresses_other_pending_notifications(self) -> None:
         """同一帧的早期回调取消队列后，其余通知不应继续执行。"""

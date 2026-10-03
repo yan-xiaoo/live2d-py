@@ -8,12 +8,14 @@ from PySide2.QtWidgets import QApplication
 from PySide2.QtWidgets import QOpenGLWidget
 
 
+LIVE2D_VERSION = 2
+
 def callback():
     print("motion end")
 
 
 class Win(QOpenGLWidget):
-    model: live2d.LAppModel
+    model: live2d.Model
 
     def __init__(self) -> None:
         super().__init__()
@@ -26,11 +28,11 @@ class Win(QOpenGLWidget):
         # 图形会被绘制到当前窗口
         self.makeCurrent()
 
-        if live2d.LIVE2D_VERSION == 3:
+        if LIVE2D_VERSION == 3:
             live2d.glInit()
 
         # 创建模型
-        self.model = live2d.LAppModel()
+        self.model = live2d.Model()
 
         # 加载模型参数
         # 适用于 3 的模型
@@ -62,9 +64,9 @@ class Win(QOpenGLWidget):
     def mousePressEvent(self, event: QMouseEvent) -> None:
         # 传入鼠标点击位置的窗口坐标
         x, y = event.pos().x(), event.pos().y()
-        if self.model.HitTest("Body", x, y):
+        if self.model.IsAreaHit("Body", x, y):
             self.model.StartRandomMotion("TapBody", 3)
-        if self.model.HitTest("Head", x, y):
+        if self.model.IsAreaHit("Head", x, y):
             self.model.SetRandomExpression()
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
