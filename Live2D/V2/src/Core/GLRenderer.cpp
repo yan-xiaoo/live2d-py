@@ -19,7 +19,7 @@ namespace V2 {
 
 using namespace Live2D::Common::Log;
 
-// GLSL shaders – exact match of Python v2 draw_param_opengl.py
+// V2 textures contain premultiplied RGB before texture filtering.
 // Version string (first line of each shader)
 #define SHADER_VER "#version 120\n"
 
@@ -61,9 +61,8 @@ static const char* sFragNormal = SHADER_VER
     "        smpColor = u_channelFlag * texture2D(s_texture0, v_texCoord).a * isInside;"
     "    }else{"
     "        smpColor = texture2D(s_texture0, v_texCoord);"
-    "        smpColor.rgb = smpColor.rgb * smpColor.a;"
     "        smpColor.rgb = smpColor.rgb * u_multiplyColor.rgb;"
-    "        smpColor.rgb = smpColor.rgb + u_screenColor.rgb - (smpColor.rgb * u_screenColor.rgb);"
+    "        smpColor.rgb = smpColor.rgb + u_screenColor.rgb * smpColor.a - (smpColor.rgb * u_screenColor.rgb);"
     "        smpColor = smpColor * u_baseColor;"
     "    }"
     "    gl_FragColor = smpColor;"
@@ -99,9 +98,8 @@ static const char* sFragMask = SHADER_VER
     "uniform vec4 u_multiplyColor;"
     "void main(){"
     "    vec4 col_formask = texture2D(s_texture0, v_texCoord);"
-    "    col_formask.rgb = col_formask.rgb * col_formask.a;"
     "    col_formask.rgb = col_formask.rgb * u_multiplyColor.rgb;"
-    "    col_formask.rgb = col_formask.rgb + u_screenColor.rgb - (col_formask.rgb * "
+    "    col_formask.rgb = col_formask.rgb + u_screenColor.rgb * col_formask.a - (col_formask.rgb * "
     "u_screenColor.rgb);"
     "    col_formask = col_formask * u_baseColor;"
     "    vec4 clipMask = texture2D(s_texture1, v_clipPos.xy / v_clipPos.w) * u_channelFlag;"

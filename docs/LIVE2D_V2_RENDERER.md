@@ -431,6 +431,18 @@ def updatePhysics(self, deltaTime):
 
 ## 着色器实现
 
+### 纹理上传与透明边缘
+
+原生 V2 的 `Model::CreateRenderer()` 和纯 Python V2 的
+`GLRenderer.loadTexture()` 在上传贴图、生成 mipmap 之前先进行 RGB 预乘：
+`RGB = round(RGB * Alpha / 255)`，Alpha 本身保持不变。
+因此，完全透明像素中保存的隐藏颜色不会在线性过滤或 mipmap 中混入可见边缘。
+只在片段着色器采样后预乘无法消除这种色边，因为邻近 RGB 已经先被混合。
+
+普通和带遮罩的绘制路径都直接使用预乘采样值，不能再乘一次 Alpha；
+屏幕色也必须乘采样 Alpha，避免把完全透明区域提亮。蒙版生成只读取 Alpha，
+现有 `ONE / ONE_MINUS_SRC_ALPHA` 等混合设置继续使用。
+
 Live2D v2 使用两个着色器程序：
 1. **Main Shader** (`shaderProgram`): 用于正常渲染和蒙版渲染
 2. **Off-Screen Shader** (`shaderProgramOff`): 用于蒙版混合
@@ -489,9 +501,8 @@ void main() {
     } else {
         // 正常渲染模式
         smpColor = texture2D(s_texture0, v_texCoord);
-        smpColor.rgb = smpColor.rgb * smpColor.a;  // 预乘 Alpha
         smpColor.rgb = smpColor.rgb * u_multiplyColor.rgb;  // 乘法混合
-        smpColor.rgb = smpColor.rgb + u_screenColor.rgb -
+        smpColor.rgb = smpColor.rgb + u_screenColor.rgb * smpColor.a -
                        (smpColor.rgb * u_screenColor.rgb);  // 屏幕混合
         smpColor = smpColor * u_baseColor;
     }
@@ -501,9 +512,9 @@ void main() {
 ```
 
 **颜色混合公式：**
-- 预乘 Alpha：`rgb *= a`
+- 预乘 Alpha：纹理上传前完成，采样后不重复预乘
 - 乘法混合：`rgb = rgb * multiplyColor`
-- 屏幕混合：`rgb = rgb + screen - (rgb * screen)`（相当于 `rgb + (1-rgb)*screen`）
+- 屏幕混合：`rgb = rgb + screen * a - rgb * screen`（`rgb` 已预乘）
 
 ### 3. 顶点着色器（Off-Screen）
 
@@ -543,9 +554,8 @@ uniform vec4 u_multiplyColor;
 void main() {
     // 采样模型颜色
     vec4 col_formask = texture2D(s_texture0, v_texCoord);
-    col_formask.rgb = col_formask.rgb * col_formask.a;
     col_formask.rgb = col_formask.rgb * u_multiplyColor.rgb;
-    col_formask.rgb = col_formask.rgb + u_screenColor.rgb -
+    col_formask.rgb = col_formask.rgb + u_screenColor.rgb * col_formask.a -
                        (col_formask.rgb * u_screenColor.rgb);
     col_formask = col_formask * u_baseColor;
 

@@ -52,6 +52,7 @@ python tests/test_v2_motion_callbacks.py -q
 python tests/test_runtime_migration.py -q
 # 需要 pygame 和可用的真实 OpenGL 上下文
 python tests/test_gl_lifecycle.py -q
+python tests/test_v2_texture_alpha.py -q
 ```
 
 详细使用文档：[Wiki](https://github.com/EasyLive2D/live2d-py/wiki)

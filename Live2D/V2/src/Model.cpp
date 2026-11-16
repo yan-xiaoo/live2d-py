@@ -739,6 +739,17 @@ void Model::CreateRenderer(int maskBufferCount) {
             continue;
         LOGD("Load texture[%zu/%zu]: %s", i + 1, mTexturePaths.size(), mTexturePaths[i].c_str());
 
+        // Premultiply before filtering/mipmap generation. RGB stored under zero
+        // alpha must not bleed into neighbouring visible texels at mesh edges.
+        const size_t pixelCount = static_cast<size_t>(w) * static_cast<size_t>(h);
+        for (size_t pixel = 0; pixel < pixelCount; ++pixel) {
+            unsigned char* rgba = pixels + pixel * 4;
+            const unsigned int alpha = rgba[3];
+            for (int channel = 0; channel < 3; ++channel) {
+                rgba[channel] = static_cast<unsigned char>((rgba[channel] * alpha + 127) / 255);
+            }
+        }
+
         GLuint texId;
         glGenTextures(1, &texId);
         glBindTexture(GL_TEXTURE_2D, texId);

@@ -1,3 +1,5 @@
+import numpy as np
+
 from ..draw import Mesh
 from ..live2d import Live2D
 from ..live2d_gl_wrapper import Live2DGLWrapper
@@ -72,9 +74,8 @@ class GLRenderer(DrawParam):
               "        smpColor = u_channelFlag * texture2D(s_texture0, v_texCoord).a * isInside;"
               "    }else{"
               "        smpColor = texture2D(s_texture0 , v_texCoord);"
-              "        smpColor.rgb = smpColor.rgb * smpColor.a;"
               "        smpColor.rgb = smpColor.rgb * u_multiplyColor.rgb;"
-              "        smpColor.rgb = smpColor.rgb + u_screenColor.rgb - (smpColor.rgb * u_screenColor.rgb);"
+              "        smpColor.rgb = smpColor.rgb + u_screenColor.rgb * smpColor.a - (smpColor.rgb * u_screenColor.rgb);"
               "        smpColor = smpColor * u_baseColor;"
               "    }"
               "    gl_FragColor = smpColor;}")
@@ -105,9 +106,8 @@ class GLRenderer(DrawParam):
               "uniform vec4       u_multiplyColor;"
               "void main(){"
               "    vec4 col_formask = texture2D(s_texture0, v_texCoord);"
-              "    col_formask.rgb = col_formask.rgb * col_formask.a;"
               "    col_formask.rgb = col_formask.rgb * u_multiplyColor.rgb;"
-              "    col_formask.rgb = col_formask.rgb + u_screenColor.rgb - (col_formask.rgb * u_screenColor.rgb);"
+              "    col_formask.rgb = col_formask.rgb + u_screenColor.rgb * col_formask.a - (col_formask.rgb * u_screenColor.rgb);"
               "    col_formask = col_formask * u_baseColor;"
               "    vec4 clipMask = texture2D(s_texture1, v_clipPos.xy / v_clipPos.w) * u_channelFlag;"
               "    float maskVal = clipMask.r + clipMask.g + clipMask.b + clipMask.a;"
@@ -329,6 +329,10 @@ class GLRenderer(DrawParam):
         self.textures[aH] = aI
 
     def loadTexture(self, no, width, height, image_data):
+        # Match native V2: premultiply before filtering, without changing alpha.
+        pixels = np.frombuffer(image_data, dtype=np.uint8).reshape(height, width, 4).astype(np.uint16)
+        pixels[:, :, :3] = (pixels[:, :, :3] * pixels[:, :, 3:4] + 127) // 255
+        image_data = pixels.astype(np.uint8).tobytes()
         gl = self.gl
         gl.enable(gl.TEXTURE_2D)
         texture = gl.createTexture()
